@@ -148,8 +148,8 @@ class VsData:
         self.db.sync()
 
     def GetTree(self, parent, id = None):
-        """´Ó parent ÍùÏÂ²éÕÒÖ¸¶¨ id µÄ½áµã£¬·µ»Ø ¸¸½áµã¡¢½áµã£¬
-        ²»´æÔÚÊ±·µ»Ø None
+        """ä» parent å¾€ä¸‹æŸ¥æ‰¾æŒ‡å®š id çš„ç»“ç‚¹ï¼Œè¿”å› çˆ¶ç»“ç‚¹ã€ç»“ç‚¹ï¼Œ
+        ä¸å­˜åœ¨æ—¶è¿”å› None
         """
         if id is None:
             return None, parent
@@ -177,8 +177,8 @@ class VsData:
         return new_id
 
     def Delete(self, id):
-        """É¾³ıÖ¸¶¨IdµÄÒ¶×Ó½áµã£¬¸ù½áµã³ıÍâ
-        ³É¹¦Ê±·µ»Ø True£¬Ê§°ÜÊ±·µ»Ø False
+        """åˆ é™¤æŒ‡å®šIdçš„å¶å­ç»“ç‚¹ï¼Œæ ¹ç»“ç‚¹é™¤å¤–
+        æˆåŠŸæ—¶è¿”å› Trueï¼Œå¤±è´¥æ—¶è¿”å› False
         """
         if id is None:
             return False
@@ -191,14 +191,14 @@ class VsData:
         if len(t["subs"]) != 0:
             return False
 
-        # É¾³ı¹ØÏµ¼ÇÂ¼
+        # åˆ é™¤å…³ç³»è®°å½•
         for i in range(len(parent["subs"])):
             if id == parent["subs"][i]["id"]:
                 del parent["subs"][i]
                 break
         self.db["tree"] = root
 
-        # É¾³ı½áµã¼ÇÂ¼
+        # åˆ é™¤ç»“ç‚¹è®°å½•
         if id in self.db:
             del self.db[id]
         self.db.sync()
@@ -235,7 +235,7 @@ class VsData:
         return self.db[id]["type"]
 
     def IsEditable(self, id = None):
-        """ÅĞ¶ÏÖ¸¶¨Id¶ÔÓ¦µÄÄÚÈİÊÇ·ñÔÊĞí±à¼­"""
+        """åˆ¤æ–­æŒ‡å®šIdå¯¹åº”çš„å†…å®¹æ˜¯å¦å…è®¸ç¼–è¾‘"""
         if id is None:
             return False
         t = self.GetType(id)
@@ -298,33 +298,33 @@ class VsFrame(wx.Frame):
         self.BuildPanes()
 
     def CreateMenuBar(self):
-        """´´½¨²Ëµ¥"""
+        """åˆ›å»ºèœå•"""
         mb = wx.MenuBar()
 
         file_menu = wx.Menu()
-        self.Bind(wx.EVT_MENU, self.OnCreateHtml, file_menu.Append(ID_Menu_CreateHtml, "ĞÂ½¨±Ê¼Ç"))
-        self.Bind(wx.EVT_MENU, self.OnCreateDir, file_menu.Append(ID_Menu_CreateDir, "ĞÂ½¨Ä¿Â¼"))
+        self.Bind(wx.EVT_MENU, self.OnCreateHtml, file_menu.Append(ID_Menu_CreateHtml, u"æ–°å»ºç¬”è®°"))
+        self.Bind(wx.EVT_MENU, self.OnCreateDir, file_menu.Append(ID_Menu_CreateDir, u"æ–°å»ºç›®å½•"))
         file_menu.AppendSeparator()
-        self.Bind(wx.EVT_MENU, self.OnRenameEntry, file_menu.Append(ID_Menu_RenameEntry, "ÖØÃüÃû"))
-        self.Bind(wx.EVT_MENU, self.OnDeleteEntry, file_menu.Append(ID_Menu_RenameEntry, "É¾³ı"))
+        self.Bind(wx.EVT_MENU, self.OnRenameEntry, file_menu.Append(ID_Menu_RenameEntry, u"é‡å‘½å"))
+        self.Bind(wx.EVT_MENU, self.OnDeleteEntry, file_menu.Append(ID_Menu_RenameEntry, u"åˆ é™¤"))
         file_menu.AppendSeparator()
-        self.Bind(wx.EVT_MENU, self.OnSave, file_menu.Append(ID_Menu_Save, "±£´æ"))
-        self.Bind(wx.EVT_MENU, self.OnExportAsHtml, file_menu.Append(ID_Menu_ExportAsHtml, "Áí´æÎªHTML"))
-        self.Bind(wx.EVT_MENU, self.OnExportAsTxt, file_menu.Append(ID_Menu_ExportAsTxt, "Áí´æÎªÎÄ±¾"))
+        self.Bind(wx.EVT_MENU, self.OnSave, file_menu.Append(ID_Menu_Save, u"ä¿å­˜"))
+        self.Bind(wx.EVT_MENU, self.OnExportAsHtml, file_menu.Append(ID_Menu_ExportAsHtml, u"å¦å­˜ä¸ºHTML"))
+        self.Bind(wx.EVT_MENU, self.OnExportAsTxt, file_menu.Append(ID_Menu_ExportAsTxt, u"å¦å­˜ä¸ºæ–‡æœ¬"))
         file_menu.AppendSeparator()
-        self.Bind(wx.EVT_MENU, self.OnExit, file_menu.Append(ID_Menu_Exit, "ÍË³ö(&X)"))
+        self.Bind(wx.EVT_MENU, self.OnExit, file_menu.Append(ID_Menu_Exit, u"é€€å‡º(&X)"))
 
         ope_menu = wx.Menu()
-        ope_menu.Append(ID_Menu_ToogleDirectory, "ÏÔÊ¾Ä¿Â¼Ê÷(&T)")
+        ope_menu.Append(ID_Menu_ToogleDirectory, u"æ˜¾ç¤ºç›®å½•æ ‘(&T)")
         ope_menu.AppendSeparator()
-        ope_menu.Append(ID_Menu_Search, "²éÕÒ(&I)")
+        ope_menu.Append(ID_Menu_Search, u"æŸ¥æ‰¾(&I)")
 
         help_menu = wx.Menu()
-        self.Bind(wx.EVT_MENU, self.OnAbout, help_menu.Append(ID_Menu_About, "¹ØÓÚ(&A)..."))
+        self.Bind(wx.EVT_MENU, self.OnAbout, help_menu.Append(ID_Menu_About, u"å…³äº(&A)..."))
 
-        mb.Append(file_menu, "ÎÄ¼ş(&F)")
-        mb.Append(ope_menu, "²Ù×÷(&O)")
-        mb.Append(help_menu, "°ïÖú(&H)")
+        mb.Append(file_menu, u"æ–‡ä»¶(&F)")
+        mb.Append(ope_menu, u"æ“ä½œ(&O)")
+        mb.Append(help_menu, u"å¸®åŠ©(&H)")
 
         self.SetMenuBar(mb)
 
@@ -368,7 +368,7 @@ class VsFrame(wx.Frame):
         DoBind(tb.AddToggleTool(-1, images._rt_colour.GetBitmap(), wx.NullBitmap, False, None, "Font Color"), self.OnColour)
         tb.Realize()
 
-        self._mgr.AddPane(self.CreateTreeCtrl(), aui.AuiPaneInfo().Name("VsFrame_Dir_Tree").Caption("Ä¿Â¼Ê÷").
+        self._mgr.AddPane(self.CreateTreeCtrl(), aui.AuiPaneInfo().Name("VsFrame_Dir_Tree").Caption(u"ç›®å½•æ ‘").
                           Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(True).
                           MinimizeButton(True).MinimizeButton(True))
 
@@ -401,12 +401,12 @@ class VsFrame(wx.Frame):
         self._mgr.Update()
 
     def IsModified(self, index):
-        """¼ì²éÖ¸¶¨±à¼­¿Ø¼şÊÇ·ñÒÑ¾­ÓĞĞŞ¸Ä¶øÎ´±£´æ"""
+        """æ£€æŸ¥æŒ‡å®šç¼–è¾‘æ§ä»¶æ˜¯å¦å·²ç»æœ‰ä¿®æ”¹è€Œæœªä¿å­˜"""
         assert fall_into(index, 0, len(self.editor_list))
         return self.editor_list[index][2]
 
     def SetModified(self, index, modified=True):
-        """±ê¼ÇÎªÒÑ¾­ĞŞ¸Ä"""
+        """æ ‡è®°ä¸ºå·²ç»ä¿®æ”¹"""
         self.editor_list[index][2] = modified
 
     def GetNotebook(self):
@@ -429,7 +429,7 @@ class VsFrame(wx.Frame):
         return parent, index, self.editor_list[index][1]
 
     def GetCurrentView(self):
-        """»ñÈ¡µ±Ç°´°¿ÚÊÓÍ¼"""
+        """è·å–å½“å‰çª—å£è§†å›¾"""
         return self.GetView()
 
     def UpdateViewTitle(self, index=None):
@@ -447,16 +447,16 @@ class VsFrame(wx.Frame):
         if index is None:
             return
 
-        # Èç¹ûÃ»ÓĞ¸Ä¶¯£¬ÔòÖ±½Ó·µ»Ø
+        # å¦‚æœæ²¡æœ‰æ”¹åŠ¨ï¼Œåˆ™ç›´æ¥è¿”å›
         if not self.IsModified(index):
             return
 
-        # »Ö¸´±êÌâ
+        # æ¢å¤æ ‡é¢˜
         self.SetModified(index, False)
         id = self.editor_list[index][0]
         self.UpdateViewTitle()
 
-        # ±£´æÄÚÈİ
+        # ä¿å­˜å†…å®¹
         s = StringIO.StringIO()
         handler = wx.richtext.RichTextXMLHandler()
         handler.SaveStream(ctrl.GetBuffer(), s)
@@ -481,23 +481,23 @@ class VsFrame(wx.Frame):
         id = self.tree.GetItemPyData(event.GetItem())
         parent = self.GetNotebook()
 
-        # Èç¹ûÄÚÈİ²»¿É±à¼­£¬ÔòÖ±½Ó·µ»Ø
+        # å¦‚æœå†…å®¹ä¸å¯ç¼–è¾‘ï¼Œåˆ™ç›´æ¥è¿”å›
         if not self.db.IsEditable(id):
             return
 
-        # Èç¹ûÒÑ¾­´ò¿ª£¬Ôò½«ÆäÑ¡ÖĞ£¬²¢·µ»Ø
+        # å¦‚æœå·²ç»æ‰“å¼€ï¼Œåˆ™å°†å…¶é€‰ä¸­ï¼Œå¹¶è¿”å›
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
                 parent.SetSelection(i)
                 return
 
-        # ´´½¨ĞÂµÄ±à¼­Ò³
+        # åˆ›å»ºæ–°çš„ç¼–è¾‘é¡µ
         ctrl = wx.richtext.RichTextCtrl(parent, style=wx.VSCROLL | wx.HSCROLL | wx.NO_BORDER)
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_CONTENT_INSERTED, self.OnRichtextContentChanged)
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_CONTENT_DELETED, self.OnRichtextContentChanged)
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_STYLE_CHANGED, self.OnRichtextContentChanged)
 
-        # ½âÎöÕıÎÄÄÚÈİ
+        # è§£ææ­£æ–‡å†…å®¹
         body = self.db.GetBody(id)
         if len(body) != 0:
             tmpfile = VsTempFile()
@@ -513,25 +513,25 @@ class VsFrame(wx.Frame):
             ctrl.EndSuppressUndo()
             ctrl.Thaw()
 
-        # ¸üĞÂµ½ÄÚ´æ¼ÇÂ¼ÀïÈ¥
+        # æ›´æ–°åˆ°å†…å­˜è®°å½•é‡Œå»
         self.editor_list.append([id, ctrl, False])
         parent.AddPage(ctrl, self.db.GetTitle(id), select = True)
 
     def OnTreeEndLabelEdit_After(self, item, old_text):
-        """¸üĞÂ title£¬Èç¹ûÒÑ¾­´ò¿ª£¬ÔòÍ¬²½¸üĞÂ"""
+        """æ›´æ–° titleï¼Œå¦‚æœå·²ç»æ‰“å¼€ï¼Œåˆ™åŒæ­¥æ›´æ–°"""
         s = self.tree.GetItemText(item)
         s = s.strip()
         if old_text == s:
             return
 
-        # ¸üĞÂÄ¿Â¼Ê÷ÀïµÄÏÔÊ¾
+        # æ›´æ–°ç›®å½•æ ‘é‡Œçš„æ˜¾ç¤º
         self.tree.SetItemText(item, s.strip())
 
-        # ¸üĞÂÊı¾İ
+        # æ›´æ–°æ•°æ®
         id = self.tree.GetItemPyData(item)
         self.db.SetTitle(id, s)
 
-        # ¸üĞÂ´ò¿ªÎÄ¼ş±êÌâ
+        # æ›´æ–°æ‰“å¼€æ–‡ä»¶æ ‡é¢˜
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
                 self.UpdateViewTitle(i)
@@ -705,14 +705,14 @@ class VsFrame(wx.Frame):
     def OnRightUp(self, event):
         tree = self.GetDirTree()
         menu = wx.Menu()
-        self.Bind(wx.EVT_MENU, self.OnCreateHtml, menu.Append(ID_Menu_CreateHtml, "ĞÂ½¨±Ê¼Ç"))
-        self.Bind(wx.EVT_MENU, self.OnCreateDir, menu.Append(ID_Menu_CreateDir, "ĞÂ½¨Ä¿Â¼"))
+        self.Bind(wx.EVT_MENU, self.OnCreateHtml, menu.Append(ID_Menu_CreateHtml, u"æ–°å»ºç¬”è®°"))
+        self.Bind(wx.EVT_MENU, self.OnCreateDir, menu.Append(ID_Menu_CreateDir, u"æ–°å»ºç›®å½•"))
         menu.AppendSeparator()
-        self.Bind(wx.EVT_MENU, self.OnRenameEntry, menu.Append(ID_Menu_RenameEntry, "ÖØÃüÃû"))
-        self.Bind(wx.EVT_MENU, self.OnDeleteEntry, menu.Append(ID_Menu_DeleteEntry, "É¾³ı"))
+        self.Bind(wx.EVT_MENU, self.OnRenameEntry, menu.Append(ID_Menu_RenameEntry, u"é‡å‘½å"))
+        self.Bind(wx.EVT_MENU, self.OnDeleteEntry, menu.Append(ID_Menu_DeleteEntry, u"åˆ é™¤"))
 
-        # Èç¹ûµ±Ç°Ñ¡ÔñÁË¸ù½áµã£¬Ôò½ûÓÃ ID_Menu_DeleteEntry
-        # Èç¹ûÓĞ×Ó½áµã£¬Ò²½ûÓÃ
+        # å¦‚æœå½“å‰é€‰æ‹©äº†æ ¹ç»“ç‚¹ï¼Œåˆ™ç¦ç”¨ ID_Menu_DeleteEntry
+        # å¦‚æœæœ‰å­ç»“ç‚¹ï¼Œä¹Ÿç¦ç”¨
         #
         cursel = tree.GetSelection()
         if cursel == tree.GetRootItem():
@@ -752,34 +752,34 @@ class VsFrame(wx.Frame):
         tree.EditLabel(item)
 
     def OnDeleteEntry(self, event):
-        """É¾³ıÒ»¸ö½áµã"""
+        """åˆ é™¤ä¸€ä¸ªç»“ç‚¹"""
         tree = self.GetDirTree()
         item = tree.GetSelection()
         id = tree.GetItemPyData(item)
 
-        # È·ÈÏÉ¾³ı
-        dlg = wx.MessageDialog(self, 'È·ÊµÒªÉ¾³ıÂğ£¿', 'È·ÈÏÉ¾³ı',
+        # ç¡®è®¤åˆ é™¤
+        dlg = wx.MessageDialog(self, u'ç¡®å®è¦åˆ é™¤å—ï¼Ÿ', u'ç¡®è®¤åˆ é™¤',
                                 wx.YES_NO | wx.ICON_QUESTION)
         ret = dlg.ShowModal()
         dlg.Destroy()
         if wx.ID_YES != ret:
             return
 
-        # ´ÓÊı¾İ¿âÀïÉ¾³ı
+        # ä»æ•°æ®åº“é‡Œåˆ é™¤
         self.db.Delete(id)
 
-        # Èç¹ûÒÑ¾­´ò¿ª£¬Ôò¹Ø±Õ
+        # å¦‚æœå·²ç»æ‰“å¼€ï¼Œåˆ™å…³é—­
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
-                self.GetNotebook.DeletePage(i)
+                self.GetNotebook().DeletePage(i)
                 break
 
-        # ´ÓÄ¿Â¼Ê÷ÀïÉ¾³ı
+        # ä»ç›®å½•æ ‘é‡Œåˆ é™¤
         tree.Delete(item)
 
     def UserQuitConfirm(self):
-        dlg = wx.MessageDialog(self, 'ÄÚÈİÒÑ¾­ĞŞ¸Äµ«Ã»ÓĞ±£´æ£¬È·ÈÏÒª¼ÌĞøÂğ£¿',
-                               'È·ÈÏ¹Ø±Õ', wx.YES_NO | wx.ICON_QUESTION)
+        dlg = wx.MessageDialog(self, u'å†…å®¹å·²ç»ä¿®æ”¹ä½†æ²¡æœ‰ä¿å­˜ï¼Œç¡®è®¤è¦ç»§ç»­å—ï¼Ÿ',
+                               u'ç¡®è®¤å…³é—­', wx.YES_NO | wx.ICON_QUESTION)
         ret = dlg.ShowModal()
         dlg.Destroy()
         return ret
@@ -788,13 +788,13 @@ class VsFrame(wx.Frame):
         index = event.GetSelection()
         assert fall_into(index, 0, len(self.editor_list))
 
-        # ÌáÊ¾µ±Ç°ÄÚÈİÒÑ¾­ĞŞ¸Äµ«»¹Ã»ÓĞ±£´æ
+        # æç¤ºå½“å‰å†…å®¹å·²ç»ä¿®æ”¹ä½†è¿˜æ²¡æœ‰ä¿å­˜
         if self.IsModified(index):
             if wx.ID_YES != self.UserQuitConfirm():
                 event.Veto()
                 return
 
-        # È·ÈÏ¹Ø±Õ£¬Çå³ıÏàÓ¦Êı¾İ½á¹¹
+        # ç¡®è®¤å…³é—­ï¼Œæ¸…é™¤ç›¸åº”æ•°æ®ç»“æ„
         del self.editor_list[index]
 
     def OnExit(self, event):
@@ -802,20 +802,20 @@ class VsFrame(wx.Frame):
 
     def OnCloseWindow(self, event):
 
-        # ²é¿´ÊÇ·ñÓĞÒÑ¾­ĞŞ¸´µ«»¹Ã»ÓĞ±£´æµÄÄÚÈİ
+        # æŸ¥çœ‹æ˜¯å¦æœ‰å·²ç»ä¿®å¤ä½†è¿˜æ²¡æœ‰ä¿å­˜çš„å†…å®¹
         modified = False
         for i in range(len(self.editor_list)):
             if self.IsModified(i):
                 modified = True
                 break
 
-        # ÓÃ»§È·ÈÏ
+        # ç”¨æˆ·ç¡®è®¤
         if modified:
             if wx.ID_YES != self.UserQuitConfirm():
                 event.Veto()
                 return
 
-        # ÍË³ö
+        # é€€å‡º
         self.Destroy()
 
     def OnAbout(self, event):
@@ -903,7 +903,7 @@ class MyApp(wx.App):
 def main():
     global program_dbpath
 
-    # ÃüÁîĞĞ²ÎÊı½âÎö
+    # å‘½ä»¤è¡Œå‚æ•°è§£æ
     usage = program_name + " [-f <file>] [-h] [-v]"
     program_dbpath = os.path.join(os.path.expanduser("~"), program_dbpath)
     parser = optparse.OptionParser(usage)
@@ -920,12 +920,12 @@ def main():
         parser.print_help()
         return
 
-    # ½âÎöÓÃ»§Ö¸¶¨ÎÄ¼şÊÇ·ñÓĞĞ§
+    # è§£æç”¨æˆ·æŒ‡å®šæ–‡ä»¶æ˜¯å¦æœ‰æ•ˆ
     program_dbpath = os.path.expanduser(options.file)
     if not os.path.isabs(program_dbpath):
         program_dbpath = os.path.realpath(os.path.join(os.curdir, program_dbpath))
 
-    # ´´½¨¶à²ãÄ¿Â¼
+    # åˆ›å»ºå¤šå±‚ç›®å½•
     dirname = os.path.dirname(program_dbpath)
     if not os.path.exists(dirname):
         try:
@@ -938,12 +938,12 @@ def main():
         return
 
     if os.path.exists(program_dbpath):
-        # Èç¹ûÂ·¾¶´æÔÚ¡¢ÇÒ²»ÊÇÎÄ¼ş£¬ÔòÍË³ö
+        # å¦‚æœè·¯å¾„å­˜åœ¨ã€ä¸”ä¸æ˜¯æ–‡ä»¶ï¼Œåˆ™é€€å‡º
         if not os.path.isfile(program_dbpath):
             print "Error: " + options.file + " is not a valid filename"
             return
 
-        # Èç¹û²»ÊÇÓĞĞ§µÄÊı¾İ¿â£¬ÔòÍË³ö
+        # å¦‚æœä¸æ˜¯æœ‰æ•ˆçš„æ•°æ®åº“ï¼Œåˆ™é€€å‡º
         try:
             db = VsData(program_dbpath)
             assert db.GetMagic() == VsData_Format_Magic
@@ -954,7 +954,7 @@ def main():
             print "Error: " + options.file + " exists but corrupted"
             return
 
-    # Æô¶¯³ÌĞò½çÃæ
+    # å¯åŠ¨ç¨‹åºç•Œé¢
     app = MyApp()
     app.MainLoop()
 
