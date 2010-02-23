@@ -2,8 +2,6 @@
 # coding: utf-8
 
 import wx
-import wx.html
-import wx.grid
 import wx.richtext
 import wx.lib
 import wx.lib.wordwrap
@@ -32,7 +30,6 @@ except ImportError: # if it's not there locally, try the wxPython lib.
     import wx.lib.agw.aui as aui
     from wx.lib.agw.aui import aui_switcherdialog as ASD
 
-import random
 import images
 
 program_name = "gumpad2"
@@ -51,14 +48,17 @@ program_main_icon = os.path.join(dirName, "main.ico")
 
 import inspect
 
+
 def debug_line():
     try:
         raise Exception
     except:
         return sys.exc_info()[2].tb_frame.f_back.f_lineno
 
+
 def debug_file():
     return inspect.currentframe().f_code.co_filename
+
 
 def fall_into(x, a, b):
     assert a < b
@@ -70,6 +70,7 @@ def fall_into(x, a, b):
 #
 
 class VsTempFile:
+
     def __init__(self):
         self.fd, self.filename = tempfile.mkstemp()
 
@@ -99,7 +100,9 @@ VsData_Type_Root    = 1
 VsData_Type_Dir     = 2
 VsData_Type_Html    = 3
 
+
 class VsData:
+
     def __init__(self, filename):
         self.m_filename = filename
         bFileExist = os.access(filename, os.R_OK | os.W_OK)
@@ -143,10 +146,10 @@ class VsData:
         self.db["magic"] = magic
         self.db.sync()
 
-    # 从 parent 往下查找指定 id 的结点，返回 父结点、结点
-    # 不存在时返回 None
-    #
     def GetTree(self, parent, id = None):
+        """从 parent 往下查找指定 id 的结点，返回 父结点、结点，
+        不存在时返回 None
+        """
         if id is None:
             return None, parent
         else:
@@ -172,10 +175,10 @@ class VsData:
         self.db.sync()
         return new_id
 
-    # 删除指定Id的叶子结点，根结点除外
-    # 成功时返回 True，失败时返回 False
-    #
     def Delete(self, id):
+        """删除指定Id的叶子结点，根结点除外
+        成功时返回 True，失败时返回 False
+        """
         if id is None:
             return False
         root = self.db["tree"]
@@ -195,7 +198,7 @@ class VsData:
         self.db["tree"] = root
 
         # 删除结点记录
-        if self.db.has_key(id):
+        if id in self.db:
             del self.db[id]
         self.db.sync()
 
@@ -230,6 +233,13 @@ class VsData:
             id = self.db["tree"]["id"]
         return self.db[id]["type"]
 
+    def IsEditable(self, id = None):
+        """判断指定Id对应的内容是否允许编辑"""
+        if id is None:
+            return False
+        t = self.GetType(id)
+        return VsData_Type_Html == t
+
 ############################################################################
 #
 # Menu Id
@@ -256,8 +266,9 @@ ID_Menu_About           = wx.ID_HIGHEST + 0x20
 
 class VsFrame(wx.Frame):
 
-    def __init__(self, parent, id=wx.ID_ANY, title="", pos= wx.DefaultPosition,
-                 size=wx.DefaultSize, style=wx.DEFAULT_FRAME_STYLE|wx.SUNKEN_BORDER):
+    def __init__(self, parent, id=wx.ID_ANY, title="", pos=wx.DefaultPosition,
+                 size=wx.DefaultSize,
+                 style=wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER):
         wx.Frame.__init__(self, parent, id, title, pos, size, style)
 
         self.db = VsData(program_dbpath)
@@ -284,10 +295,8 @@ class VsFrame(wx.Frame):
         self.CreateMenuBar()
         self.BuildPanes()
 
-    # 创建菜单
-    #
     def CreateMenuBar(self):
-
+        """创建菜单"""
         mb = wx.MenuBar()
 
         file_menu = wx.Menu()
@@ -331,9 +340,7 @@ class VsFrame(wx.Frame):
 
         tb = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize, aui.AUI_TB_DEFAULT_STYLE | aui.AUI_TB_OVERFLOW)
         tb.SetToolBitmapSize(wx.Size(16, 16))
-#        doBind( tb.AddSimpleTool(-1, "Open", images._rt_open.GetBitmap()), None)
-#        doBind( tb.AddSimpleTool(-1, "Save", images._rt_save.GetBitmap()), None)
-#        tb.AddSeparator()
+
         DoBind(tb.AddToggleTool(wx.ID_CUT, images._rt_cut.GetBitmap(), wx.NullBitmap, False, None, "Cut"), self.ForwardEvent, self.ForwardEvent)
         DoBind(tb.AddToggleTool(wx.ID_COPY, images._rt_copy.GetBitmap(), wx.NullBitmap, False, None, "Copy"), self.ForwardEvent, self.ForwardEvent)
         DoBind(tb.AddToggleTool(wx.ID_PASTE, images._rt_paste.GetBitmap(), wx.NullBitmap, False, None, "Paste"), self.ForwardEvent, self.ForwardEvent)
@@ -414,6 +421,10 @@ class VsFrame(wx.Frame):
         id = self.tree.GetItemPyData(event.GetItem())
         parent = self._mgr.GetPane("VsFrame_Notebook").window
 
+        # 如果内容不可编辑，则直接返回
+        if not self.db.IsEditable(id):
+            return
+
         # 如果已经打开，则将其选中，并返回
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
@@ -443,31 +454,29 @@ class VsFrame(wx.Frame):
         self.editor_list.append([id, ctrl])
         parent.AddPage(ctrl, self.db.GetTitle(id), select = True)
 
-    # 更新 title，如果已经打开，则同步更新
-    #
     def OnTreeEndLabelEdit_After(self, item, old_text):
-        str = self.tree.GetItemText(item)
-        str = str.strip()
-        if old_text == str:
+        """更新 title，如果已经打开，则同步更新"""
+        s = self.tree.GetItemText(item)
+        s = s.strip()
+        if old_text == s:
             return
 
         # 更新目录树里的显示
-        self.tree.SetItemText(item, str.strip())
+        self.tree.SetItemText(item, s.strip())
 
         # 更新数据
         id = self.tree.GetItemPyData(item)
-        self.db.SetTitle(id, str)
+        self.db.SetTitle(id, s)
 
         # 更新打开文件标题
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
-                self._mgr.GetPane("VsFrame_Notebook").window.SetPageText(i, str)
+                self._mgr.GetPane("VsFrame_Notebook").window.SetPageText(i, s)
                 break
 
     def OnTreeEndLabelEdit(self, event):
         item = event.GetItem()
         wx.CallAfter(self.OnTreeEndLabelEdit_After, item, self.tree.GetItemText(item))
-
 
     def OnBold(self, evt):
         parent = self._mgr.GetPane("VsFrame_Notebook").window
@@ -518,7 +527,7 @@ class VsFrame(wx.Frame):
         ctrl = self.editor_list[index][1]
         ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_RIGHT)
 
-    def OnIndentLess(self,evt):
+    def OnIndentLess(self, evt):
         parent = self._mgr.GetPane("VsFrame_Notebook").window
         index = parent.GetSelection()
         if index < 0:
@@ -725,7 +734,7 @@ class VsFrame(wx.Frame):
         if cursel == tree.GetRootItem():
             menu.Enable(ID_Menu_DeleteEntry, False)
         if tree.GetChildrenCount(cursel) > 0:
-           menu.Enable(ID_Menu_DeleteEntry, False)
+            menu.Enable(ID_Menu_DeleteEntry, False)
 
         self.PopupMenu(menu)
         menu.Destroy()
@@ -757,15 +766,15 @@ class VsFrame(wx.Frame):
         item = tree.GetSelection()
         tree.EditLabel(item)
 
-    # 删除一个结点
-    #
     def OnDeleteEntry(self, evt):
+        """删除一个结点"""
         tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
         item = tree.GetSelection()
         id = tree.GetItemPyData(item)
 
         # 确认删除
-        dlg = wx.MessageDialog(self, '确实要删除吗？', '确认删除', wx.YES_NO | wx.ICON_QUESTION)
+        dlg = wx.MessageDialog(self, '确实要删除吗？', '确认删除',
+                                wx.YES_NO | wx.ICON_QUESTION)
         ret = dlg.ShowModal()
         dlg.Destroy()
         if wx.ID_YES != ret:
@@ -810,10 +819,10 @@ class VsFrame(wx.Frame):
             child_id = db_node["subs"][i]["id"]
             t = self.db.GetType(child_id)
             if VsData_Type_Html == t:
-                image_index = 1
+                imgidx = 1
             else:
-                image_index = 0
-            n = self.tree.AppendItem(node, self.db.GetTitle(child_id), image_index)
+                imgidx = 0
+            n = self.tree.AppendItem(node, self.db.GetTitle(child_id), imgidx)
             self.tree.SetItemPyData(n, child_id)
 
             self.Tree_AddNode(db_node["subs"][i], n)
@@ -821,7 +830,7 @@ class VsFrame(wx.Frame):
     def CreateTreeCtrl(self):
 
         self.tree = wx.TreeCtrl(self, -1, wx.Point(0, 0), wx.Size(160, 250),
-                           wx.TR_DEFAULT_STYLE | wx.NO_BORDER | wx.TR_EDIT_LABELS | wx.TR_NO_BUTTONS )
+                           wx.TR_DEFAULT_STYLE | wx.NO_BORDER | wx.TR_EDIT_LABELS | wx.TR_NO_BUTTONS)
 
         imglist = wx.ImageList(16, 16, True, 2)
         imglist.Add(wx.ArtProvider.GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, wx.Size(16, 16)))
@@ -853,7 +862,9 @@ class VsFrame(wx.Frame):
         ctrl.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnNotebookPageClose)
         return ctrl
 
+
 class MyApp(wx.App):
+
     def __init__(self):
         wx.App.__init__(self, 0)
 
@@ -869,6 +880,7 @@ class MyApp(wx.App):
     def OnActivate(self, event):
         if event.GetActive():
             pass
+
 
 def main():
     global program_dbpath
