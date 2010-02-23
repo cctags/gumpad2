@@ -11,6 +11,7 @@ import sys
 import uuid
 import tempfile
 import optparse
+import StringIO
 
 import zshelve
 
@@ -270,6 +271,7 @@ class VsFrame(wx.Frame):
                  size=wx.DefaultSize,
                  style=wx.DEFAULT_FRAME_STYLE | wx.SUNKEN_BORDER):
         wx.Frame.__init__(self, parent, id, title, pos, size, style)
+        self.Bind(wx.EVT_CLOSE, self.OnCloseWindow)
 
         self.db = VsData(program_dbpath)
         self.tree = None
@@ -398,18 +400,67 @@ class VsFrame(wx.Frame):
         # "commit" all changes made to AuiManager
         self._mgr.Update()
 
-    def OnSave(self, event):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
+    def IsModified(self, index):
+        """检查指定编辑控件是否已经有修改而未保存"""
         assert fall_into(index, 0, len(self.editor_list))
+        return self.editor_list[index][2]
 
-        import StringIO
+    def SetModified(self, index, modified=True):
+        """标记为已经修改"""
+        self.editor_list[index][2] = modified
+
+    def GetNotebook(self):
+        notebook = self._mgr.GetPane("VsFrame_Notebook").window
+        assert notebook is not None
+        return notebook
+
+    def GetDirTree(self):
+        tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
+        assert tree is not None
+        return tree
+
+    def GetView(self, index=None):
+        parent = self.GetNotebook()
+        if index is None:
+            index = parent.GetSelection()
+        if index < 0:
+            return parent, None, None
+        assert fall_into(index, 0, len(self.editor_list))
+        return parent, index, self.editor_list[index][1]
+
+    def GetCurrentView(self):
+        """获取当前窗口视图"""
+        return self.GetView()
+
+    def UpdateViewTitle(self, index=None):
+        parent, index, ctrl = self.GetView(index)
+
+        id = self.editor_list[index][0]
+        str = self.db.GetTitle(id)
+        if self.IsModified(index):
+            str = "* " + str
+        parent.SetPageText(index, str)
+
+    def OnSave(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+
+        if index is None:
+            return
+
+        # 如果没有改动，则直接返回
+        if not self.IsModified(index):
+            return
+
+        # 恢复标题
+        self.SetModified(index, False)
+        id = self.editor_list[index][0]
+        self.UpdateViewTitle()
+
+        # 保存内容
         s = StringIO.StringIO()
         handler = wx.richtext.RichTextXMLHandler()
-        handler.SaveStream(self.editor_list[index][1].GetBuffer(), s)
-        self.db.SetBody(self.editor_list[index][0], s.getvalue())
+        handler.SaveStream(ctrl.GetBuffer(), s)
+        self.db.SetBody(id, s.getvalue())
 
     def OnExportAsHtml(self, event):
         pass
@@ -417,9 +468,18 @@ class VsFrame(wx.Frame):
     def OnExportAsTxt(self, event):
         pass
 
+    def OnRichtextContentChanged(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        assert index is not None
+        assert event.GetEventObject() is ctrl
+
+        if not self.IsModified(index):
+            self.SetModified(index, True)
+            self.UpdateViewTitle()
+
     def OnTreeItemActivated(self, event):
         id = self.tree.GetItemPyData(event.GetItem())
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
+        parent = self.GetNotebook()
 
         # 如果内容不可编辑，则直接返回
         if not self.db.IsEditable(id):
@@ -433,6 +493,9 @@ class VsFrame(wx.Frame):
 
         # 创建新的编辑页
         ctrl = wx.richtext.RichTextCtrl(parent, style=wx.VSCROLL | wx.HSCROLL | wx.NO_BORDER)
+        ctrl.Bind(wx.richtext.EVT_RICHTEXT_CONTENT_INSERTED, self.OnRichtextContentChanged)
+        ctrl.Bind(wx.richtext.EVT_RICHTEXT_CONTENT_DELETED, self.OnRichtextContentChanged)
+        ctrl.Bind(wx.richtext.EVT_RICHTEXT_STYLE_CHANGED, self.OnRichtextContentChanged)
 
         # 解析正文内容
         body = self.db.GetBody(id)
@@ -451,7 +514,7 @@ class VsFrame(wx.Frame):
             ctrl.Thaw()
 
         # 更新到内存记录里去
-        self.editor_list.append([id, ctrl])
+        self.editor_list.append([id, ctrl, False])
         parent.AddPage(ctrl, self.db.GetTitle(id), select = True)
 
     def OnTreeEndLabelEdit_After(self, item, old_text):
@@ -471,69 +534,42 @@ class VsFrame(wx.Frame):
         # 更新打开文件标题
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
-                self._mgr.GetPane("VsFrame_Notebook").window.SetPageText(i, s)
+                self.UpdateViewTitle(i)
                 break
 
     def OnTreeEndLabelEdit(self, event):
         item = event.GetItem()
         wx.CallAfter(self.OnTreeEndLabelEdit_After, item, self.tree.GetItemText(item))
 
-    def OnBold(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
+    def OnBold(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.ApplyBoldToSelection()
+
+    def OnItalics(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.ApplyItalicToSelection()
+
+    def OnAlignLeft(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_LEFT)
+
+    def OnAlignCenter(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_CENTRE)
+
+    def OnAlignRight(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_RIGHT)
+
+    def OnIndentLess(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is None:
             return
-        assert fall_into(index, 0, len(self.editor_list))
-
-        ctrl = self.editor_list[index][1]
-
-        ctrl.ApplyBoldToSelection()
-
-    def OnItalics(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-
-        ctrl = self.editor_list[index][1]
-
-        ctrl.ApplyItalicToSelection()
-
-    def OnAlignLeft(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-        ctrl = self.editor_list[index][1]
-        ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_LEFT)
-
-    def OnAlignCenter(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-        ctrl = self.editor_list[index][1]
-        ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_CENTRE)
-
-    def OnAlignRight(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-        ctrl = self.editor_list[index][1]
-        ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_RIGHT)
-
-    def OnIndentLess(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-        ctrl = self.editor_list[index][1]
 
         attr = wx.richtext.TextAttrEx()
         attr.SetFlags(wx.richtext.TEXT_ATTR_LEFT_INDENT)
@@ -548,13 +584,10 @@ class VsFrame(wx.Frame):
             attr.SetFlags(wx.richtext.TEXT_ATTR_LEFT_INDENT)
             ctrl.SetStyle(r, attr)
 
-    def OnIndentMore(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
+    def OnIndentMore(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is None:
             return
-        assert fall_into(index, 0, len(self.editor_list))
-        ctrl = self.editor_list[index][1]
 
         attr = wx.richtext.TextAttrEx()
         attr.SetFlags(wx.richtext.TEXT_ATTR_LEFT_INDENT)
@@ -568,25 +601,15 @@ class VsFrame(wx.Frame):
             attr.SetFlags(wx.richtext.TEXT_ATTR_LEFT_INDENT)
             ctrl.SetStyle(r, attr)
 
-    def OnUnderline(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
+    def OnUnderline(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.ApplyUnderlineToSelection()
+
+    def OnFont(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is None:
             return
-        assert fall_into(index, 0, len(self.editor_list))
-
-        ctrl = self.editor_list[index][1]
-
-        ctrl.ApplyUnderlineToSelection()
-
-    def OnFont(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-
-        ctrl = self.editor_list[index][1]
 
         if not ctrl.HasSelection():
             return
@@ -609,14 +632,10 @@ class VsFrame(wx.Frame):
                 ctrl.SetStyle(r, attr)
         dlg.Destroy()
 
-    def OnColour(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
+    def OnColour(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is None:
             return
-        assert fall_into(index, 0, len(self.editor_list))
-
-        ctrl = self.editor_list[index][1]
 
         if not ctrl.HasSelection():
             return
@@ -641,85 +660,50 @@ class VsFrame(wx.Frame):
                     ctrl.SetStyle(r, attr)
         dlg.Destroy()
 
-    def ForwardEvent(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
+    def ForwardEvent(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.ProcessEvent(event)
 
-        ctrl = self.editor_list[index][1]
-        ctrl.ProcessEvent(evt)
+    def OnUpdateBold(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            event.Check(ctrl.IsSelectionBold())
 
-    def OnUpdateBold(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
+    def OnUpdateItalic(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            event.Check(ctrl.IsSelectionItalics())
 
-        ctrl = self.editor_list[index][1]
-        evt.Check(ctrl.IsSelectionBold())
+    def OnUpdateUnderline(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            event.Check(ctrl.IsSelectionUnderlined())
 
-    def OnUpdateItalic(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
+    def OnUpdateAlignLeft(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            event.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_LEFT))
 
-        ctrl = self.editor_list[index][1]
-        evt.Check(ctrl.IsSelectionItalics())
+    def OnUpdateAlignCenter(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            event.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_CENTRE))
 
-    def OnUpdateUnderline(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
+    def OnUpdateAlignRight(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            event.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_RIGHT))
 
-        ctrl = self.editor_list[index][1]
-        evt.Check(ctrl.IsSelectionUnderlined())
-
-    def OnUpdateAlignLeft(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-
-        ctrl = self.editor_list[index][1]
-        evt.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_LEFT))
-
-    def OnUpdateAlignCenter(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-
-        ctrl = self.editor_list[index][1]
-        evt.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_CENTRE))
-
-    def OnUpdateAlignRight(self, evt):
-        parent = self._mgr.GetPane("VsFrame_Notebook").window
-        index = parent.GetSelection()
-        if index < 0:
-            return
-        assert fall_into(index, 0, len(self.editor_list))
-
-        ctrl = self.editor_list[index][1]
-        evt.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_RIGHT))
-
-    def OnRightDown(self, evt):
-        tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
-        pt = evt.GetPosition()
+    def OnRightDown(self, event):
+        tree = self.GetDirTree()
+        pt = event.GetPosition()
         item, flags = tree.HitTest(pt)
         if item:
             tree.SelectItem(item)
 
-    def OnRightUp(self, evt):
-        tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
+    def OnRightUp(self, event):
+        tree = self.GetDirTree()
         menu = wx.Menu()
         self.Bind(wx.EVT_MENU, self.OnCreateHtml, menu.Append(ID_Menu_CreateHtml, "新建笔记"))
         self.Bind(wx.EVT_MENU, self.OnCreateDir, menu.Append(ID_Menu_CreateDir, "新建目录"))
@@ -739,36 +723,37 @@ class VsFrame(wx.Frame):
         self.PopupMenu(menu)
         menu.Destroy()
 
-        evt.Skip()
+        event.Skip()
 
-    def OnCreateHtml(self, evt):
-        tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
+    def OnCreateEntry(self, event, type):
+        tree = self.GetDirTree()
         parent_item = tree.GetSelection()
         parent_id = tree.GetItemPyData(parent_item)
-        child_id = self.db.Add("new item", "", parent_id, VsData_Type_Html)
-        child_item = tree.AppendItem(parent_item, "new item", 1)
+        name = "new item"
+        if VsData_Type_Dir == type:
+            image_index = 0
+        else:
+            image_index = 1
+        child_id = self.db.Add(name, "", parent_id, type)
+        child_item = tree.AppendItem(parent_item, name, image_index)
         tree.SetItemPyData(child_item, child_id)
         tree.SelectItem(child_item)
         tree.EditLabel(child_item)
 
-    def OnCreateDir(self, evt):
-        tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
-        parent_item = tree.GetSelection()
-        parent_id = tree.GetItemPyData(parent_item)
-        child_id = self.db.Add("new item", "", parent_id, VsData_Type_Dir)
-        child_item = tree.AppendItem(parent_item, "new item", 0)
-        tree.SetItemPyData(child_item, child_id)
-        tree.SelectItem(child_item)
-        tree.EditLabel(child_item)
+    def OnCreateHtml(self, event):
+        self.OnCreateEntry(event, VsData_Type_Html)
 
-    def OnRenameEntry(self, evt):
-        tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
+    def OnCreateDir(self, event):
+        self.OnCreateEntry(event, VsData_Type_Dir)
+
+    def OnRenameEntry(self, event):
+        tree = self.GetDirTree()
         item = tree.GetSelection()
         tree.EditLabel(item)
 
-    def OnDeleteEntry(self, evt):
+    def OnDeleteEntry(self, event):
         """删除一个结点"""
-        tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
+        tree = self.GetDirTree()
         item = tree.GetSelection()
         id = tree.GetItemPyData(item)
 
@@ -786,19 +771,52 @@ class VsFrame(wx.Frame):
         # 如果已经打开，则关闭
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
-                self._mgr.GetPane("VsFrame_Notebook").window.DeletePage(i)
+                self.GetNotebook.DeletePage(i)
                 break
 
         # 从目录树里删除
         tree.Delete(item)
 
+    def UserQuitConfirm(self):
+        dlg = wx.MessageDialog(self, '内容已经修改但没有保存，确认要继续吗？',
+                               '确认关闭', wx.YES_NO | wx.ICON_QUESTION)
+        ret = dlg.ShowModal()
+        dlg.Destroy()
+        return ret
+
     def OnNotebookPageClose(self, event):
         index = event.GetSelection()
         assert fall_into(index, 0, len(self.editor_list))
+
+        # 提示当前内容已经修改但还没有保存
+        if self.IsModified(index):
+            if wx.ID_YES != self.UserQuitConfirm():
+                event.Veto()
+                return
+
+        # 确认关闭，清除相应数据结构
         del self.editor_list[index]
 
     def OnExit(self, event):
-        self.Close(True)
+        self.Close(False)
+
+    def OnCloseWindow(self, event):
+
+        # 查看是否有已经修复但还没有保存的内容
+        modified = False
+        for i in range(len(self.editor_list)):
+            if self.IsModified(i):
+                modified = True
+                break
+
+        # 用户确认
+        if modified:
+            if wx.ID_YES != self.UserQuitConfirm():
+                event.Veto()
+                return
+
+        # 退出
+        self.Destroy()
 
     def OnAbout(self, event):
         info = wx.AboutDialogInfo()
@@ -869,9 +887,9 @@ class MyApp(wx.App):
         wx.App.__init__(self, 0)
 
     def OnInit(self):
-        self.m_frame = VsFrame(None, -1, program_title, size=(800, 600))
-        self.m_frame.CenterOnScreen()
-        self.m_frame.Show()
+        self.frame = VsFrame(None, -1, program_title, size=(800, 600))
+        self.frame.CenterOnScreen()
+        self.frame.Show()
 
         self.Bind(wx.EVT_ACTIVATE_APP, self.OnActivate)
 
