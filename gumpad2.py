@@ -12,6 +12,8 @@ import uuid
 import tempfile
 import optparse
 import StringIO
+import time
+import locale
 
 import zshelve
 
@@ -260,6 +262,42 @@ ID_Menu_Search          = wx.ID_HIGHEST + 0x11
 
 ID_Menu_About           = wx.ID_HIGHEST + 0x20
 
+
+############################################################################
+#
+# VsStatusBar
+#
+
+class VsStatusBar(wx.StatusBar):
+
+    def __init__(self, parent):
+        wx.StatusBar.__init__(self, parent, -1)
+        self.SetFieldsCount(3)
+        self.SetStatusStyles([wx.SB_FLAT, wx.SB_NORMAL, wx.SB_NORMAL])
+
+        # 显示当前操作数据
+        str = "@ %s" % (self.GetParent().db.GetFileName())
+        self.SetStatusText(str, 1)
+
+        # 初始时显示时间
+        self.OnTimer()
+
+        # 调整控件大小
+        width, height = self.GetTextExtent(self.GetStatusText(2))
+        width += 48
+        self.SetStatusWidths([0, -1, width])
+
+        # 控件时间显示
+        self.timer = wx.PyTimer(self.OnTimer)
+        self.timer.Start(1000 * 20)
+
+    def OnTimer(self):
+        # 显示当前时间
+        t = time.localtime(time.time())
+        str = time.strftime("[%Y-%m-%d %H:%M %A]", t)
+        self.SetStatusText(str, 2)
+
+
 ############################################################################
 #
 # VsFrame
@@ -291,8 +329,8 @@ class VsFrame(wx.Frame):
         self._notebook_style = aui.AUI_NB_DEFAULT_STYLE | aui.AUI_NB_TAB_EXTERNAL_MOVE | wx.NO_BORDER
         self._notebook_theme = 0
 
-        self.CreateStatusBar()
-        self.GetStatusBar().SetStatusText(self.db.GetFileName())
+        # 状态栏
+        self.SetStatusBar(VsStatusBar(self))
 
         self.CreateMenuBar()
         self.BuildPanes()
@@ -902,6 +940,9 @@ class MyApp(wx.App):
 
 def main():
     global program_dbpath
+
+    # 本地化设置
+    locale.setlocale(locale.LC_ALL, '')
 
     # 命令行参数解析
     usage = program_name + " [-f <file>] [-h] [-v]"
