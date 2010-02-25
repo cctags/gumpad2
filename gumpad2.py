@@ -245,22 +245,41 @@ class VsData:
 
 ############################################################################
 #
-# Menu Id
+# Control item Id
 #
 
-ID_Menu_CreateHtml      = wx.ID_HIGHEST + 0x01
-ID_Menu_CreateDir       = wx.ID_HIGHEST + 0x02
-ID_Menu_RenameEntry     = wx.ID_HIGHEST + 0x03
-ID_Menu_DeleteEntry     = wx.ID_HIGHEST + 0x04
-ID_Menu_Save            = wx.ID_HIGHEST + 0x05
-ID_Menu_ExportAsHtml    = wx.ID_HIGHEST + 0x06
-ID_Menu_ExportAsTxt     = wx.ID_HIGHEST + 0x07
-ID_Menu_Exit            = wx.ID_HIGHEST + 0x08
+VsGenerateMenuId_Start = wx.ID_HIGHEST + 1
 
-ID_Menu_ToogleDirectory = wx.ID_HIGHEST + 0x10
-ID_Menu_Search          = wx.ID_HIGHEST + 0x11
+def VsGenerateMenuId():
+    global VsGenerateMenuId_Start
+    VsGenerateMenuId_Start += 1
+    return VsGenerateMenuId_Start
 
-ID_Menu_About           = wx.ID_HIGHEST + 0x20
+ID_Menu_CreateHtml      = VsGenerateMenuId()
+ID_Menu_CreateDir       = VsGenerateMenuId()
+ID_Menu_RenameEntry     = VsGenerateMenuId()
+ID_Menu_DeleteEntry     = VsGenerateMenuId()
+ID_Menu_Save            = VsGenerateMenuId()
+ID_Menu_ExportAsHtml    = VsGenerateMenuId()
+ID_Menu_ExportAsTxt     = VsGenerateMenuId()
+ID_Menu_Exit            = VsGenerateMenuId()
+
+ID_Menu_ToogleDirectory = VsGenerateMenuId()
+ID_Menu_ToogleToolBar   = VsGenerateMenuId()
+ID_Menu_Search          = VsGenerateMenuId()
+
+ID_Menu_About           = VsGenerateMenuId()
+
+ID_ToolBar_Bold         = VsGenerateMenuId()
+ID_ToolBar_Italic       = VsGenerateMenuId()
+ID_ToolBar_Underline    = VsGenerateMenuId()
+ID_ToolBar_AlignLeft    = VsGenerateMenuId()
+ID_ToolBar_Center       = VsGenerateMenuId()
+ID_ToolBar_AlignRight   = VsGenerateMenuId()
+ID_ToolBar_IndentLess   = VsGenerateMenuId()
+ID_ToolBar_IndentMore   = VsGenerateMenuId()
+ID_ToolBar_Font         = VsGenerateMenuId()
+ID_ToolBar_FontColor    = VsGenerateMenuId()
 
 
 ############################################################################
@@ -339,6 +358,11 @@ class VsFrame(wx.Frame):
         """创建菜单"""
         mb = wx.MenuBar()
 
+        def DoBindMenuHandler(item, handler, updateUI=None):
+            self.Bind(wx.EVT_MENU, handler, item)
+            if updateUI is not None:
+                self.Bind(wx.EVT_UPDATE_UI, updateUI, item)
+
         file_menu = wx.Menu()
         self.Bind(wx.EVT_MENU, self.OnCreateHtml, file_menu.Append(ID_Menu_CreateHtml, u"新建笔记"))
         self.Bind(wx.EVT_MENU, self.OnCreateDir, file_menu.Append(ID_Menu_CreateDir, u"新建目录"))
@@ -353,7 +377,8 @@ class VsFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnExit, file_menu.Append(ID_Menu_Exit, u"退出(&X)"))
 
         ope_menu = wx.Menu()
-        ope_menu.Append(ID_Menu_ToogleDirectory, u"显示目录树(&T)")
+        DoBindMenuHandler(ope_menu.AppendCheckItem(ID_Menu_ToogleDirectory, u"显示目录树(&D)"), self.OnToogleDirTree, self.OnMenuUpdateUI)
+        DoBindMenuHandler(ope_menu.AppendCheckItem(ID_Menu_ToogleToolBar, u"显示工具栏(&T)"), self.OnToogleToolBar, self.OnMenuUpdateUI)
         ope_menu.AppendSeparator()
         ope_menu.Append(ID_Menu_Search, u"查找(&I)")
 
@@ -366,14 +391,8 @@ class VsFrame(wx.Frame):
 
         self.SetMenuBar(mb)
 
-    def BuildPanes(self):
-
-        # min size for the frame itself isn't completely done.
-        # see the end up AuiManager.Update() for the test
-        # code. For now, just hard code a frame minimum size
-        self.SetMinSize(wx.Size(400, 300))
-
-        def DoBind(item, handler, updateUI = None):
+    def CreateToolBar(self):
+        def DoBind(item, handler, updateUI=None):
             self.Bind(wx.EVT_TOOL, handler, item)
             if updateUI is not None:
                 self.Bind(wx.EVT_UPDATE_UI, updateUI, item)
@@ -389,31 +408,52 @@ class VsFrame(wx.Frame):
         DoBind(tb.AddToggleTool(wx.ID_REDO, images._rt_redo.GetBitmap(), wx.NullBitmap, False, None, "Redo"), self.ForwardEvent, self.ForwardEvent)
         tb.AddSeparator()
 
-        DoBind(tb.AddToggleTool(-1, images._rt_bold.GetBitmap(), wx.NullBitmap, True, None, "Bold"), self.OnBold, self.OnUpdateBold)
-        DoBind(tb.AddToggleTool(-1, images._rt_italic.GetBitmap(), wx.NullBitmap, True, None, "Italic"), self.OnItalics, self.OnUpdateItalic)
-        DoBind(tb.AddToggleTool(-1, images._rt_underline.GetBitmap(), wx.NullBitmap, True, None, "Underline"), self.OnUnderline, self.OnUpdateUnderline)
+        DoBind(tb.AddToggleTool(ID_ToolBar_Bold, images._rt_bold.GetBitmap(), wx.NullBitmap, True, None, "Bold"), self.OnBold, self.OnToolBarUpdateUI)
+        DoBind(tb.AddToggleTool(ID_ToolBar_Italic, images._rt_italic.GetBitmap(), wx.NullBitmap, True, None, "Italic"), self.OnItalics, self.OnToolBarUpdateUI)
+        DoBind(tb.AddToggleTool(ID_ToolBar_Underline, images._rt_underline.GetBitmap(), wx.NullBitmap, True, None, "Underline"), self.OnUnderline, self.OnToolBarUpdateUI)
         tb.AddSeparator()
-        DoBind(tb.AddToggleTool(-1, images._rt_alignleft.GetBitmap(), wx.NullBitmap, True, None, "Align left"), self.OnAlignLeft, self.OnUpdateAlignLeft)
-        DoBind(tb.AddToggleTool(-1, images._rt_centre.GetBitmap(), wx.NullBitmap, True, None, "Center"), self.OnAlignCenter, self.OnUpdateAlignCenter)
-        DoBind(tb.AddToggleTool(-1, images._rt_alignright.GetBitmap(), wx.NullBitmap, True, None, "Align right"), self.OnAlignRight, self.OnUpdateAlignRight)
+        DoBind(tb.AddToggleTool(ID_ToolBar_AlignLeft, images._rt_alignleft.GetBitmap(), wx.NullBitmap, True, None, "Align left"), self.OnAlignLeft, self.OnToolBarUpdateUI)
+        DoBind(tb.AddToggleTool(ID_ToolBar_Center, images._rt_centre.GetBitmap(), wx.NullBitmap, True, None, "Center"), self.OnAlignCenter, self.OnToolBarUpdateUI)
+        DoBind(tb.AddToggleTool(ID_ToolBar_AlignRight, images._rt_alignright.GetBitmap(), wx.NullBitmap, True, None, "Align right"), self.OnAlignRight, self.OnToolBarUpdateUI)
         tb.AddSeparator()
-        DoBind(tb.AddToggleTool(-1, images._rt_indentless.GetBitmap(), wx.NullBitmap, False, None, "Indent Less"), self.OnIndentLess)
-        DoBind(tb.AddToggleTool(-1, images._rt_indentmore.GetBitmap(), wx.NullBitmap, False, None, "Indent More"), self.OnIndentMore)
+        DoBind(tb.AddToggleTool(ID_ToolBar_IndentLess, images._rt_indentless.GetBitmap(), wx.NullBitmap, False, None, "Indent Less"), self.OnIndentLess, self.OnToolBarUpdateUI)
+        DoBind(tb.AddToggleTool(ID_ToolBar_IndentMore, images._rt_indentmore.GetBitmap(), wx.NullBitmap, False, None, "Indent More"), self.OnIndentMore, self.OnToolBarUpdateUI)
 
         tb.AddSeparator()
 
-        DoBind(tb.AddToggleTool(-1, images._rt_font.GetBitmap(), wx.NullBitmap, False, None, "Font"), self.OnFont)
-        DoBind(tb.AddToggleTool(-1, images._rt_colour.GetBitmap(), wx.NullBitmap, False, None, "Font Color"), self.OnColour)
+        DoBind(tb.AddToggleTool(ID_ToolBar_Font, images._rt_font.GetBitmap(), wx.NullBitmap, False, None, "Font"), self.OnFont, self.OnToolBarUpdateUI)
+        DoBind(tb.AddToggleTool(ID_ToolBar_FontColor, images._rt_colour.GetBitmap(), wx.NullBitmap, False, None, "Font Color"), self.OnColour, self.OnToolBarUpdateUI)
         tb.Realize()
 
+        self.toolbar_updateui_funcs = {
+            ID_ToolBar_Bold: self.OnUpdateBold,
+            ID_ToolBar_Italic: self.OnUpdateItalic,
+            ID_ToolBar_Underline: self.OnUpdateUnderline,
+            ID_ToolBar_AlignLeft: self.OnUpdateAlignLeft,
+            ID_ToolBar_Center: self.OnUpdateAlignCenter,
+            ID_ToolBar_AlignRight: self.OnUpdateAlignRight,
+            ID_ToolBar_IndentLess: None,
+            ID_ToolBar_IndentMore: None,
+            ID_ToolBar_Font: None,
+            ID_ToolBar_FontColor: None,
+        }
+
+        return tb
+
+    def BuildPanes(self):
+        # min size for the frame itself isn't completely done.
+        # see the end up AuiManager.Update() for the test
+        # code. For now, just hard code a frame minimum size
+        self.SetMinSize(wx.Size(400, 300))
+
         self._mgr.AddPane(self.CreateTreeCtrl(), aui.AuiPaneInfo().Name("VsFrame_Dir_Tree").Caption(u"目录树").
-                          Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(True).
-                          MinimizeButton(True).MinimizeButton(True))
+                          Left().Layer(1).Position(1).CloseButton(True).MaximizeButton(False).
+                          MinimizeButton(False))
 
         self._mgr.AddPane(self.CreateNotebook(), aui.AuiPaneInfo().Name("VsFrame_Notebook").
                           CenterPane().PaneBorder(False))
 
-        self._mgr.AddPane(tb, aui.AuiPaneInfo().Name("VsFrame_Html_Edit_Toolbar").Caption("Toobar").ToolbarPane().Top())
+        self._mgr.AddPane(self.CreateToolBar(), aui.AuiPaneInfo().Name("VsFrame_Html_Edit_Toolbar").Caption("Toobar").ToolbarPane().Top())
 
         # make some default perspectives
         #
@@ -447,13 +487,19 @@ class VsFrame(wx.Frame):
         """标记为已经修改"""
         self.editor_list[index][2] = modified
 
+    def GetToolBarPanelInfo(self):
+        return self._mgr.GetPane("VsFrame_Html_Edit_Toolbar")
+
     def GetNotebook(self):
         notebook = self._mgr.GetPane("VsFrame_Notebook").window
         assert notebook is not None
         return notebook
 
+    def GetDirTreePanelInfo(self):
+        return self._mgr.GetPane("VsFrame_Dir_Tree")
+
     def GetDirTree(self):
-        tree = self._mgr.GetPane("VsFrame_Dir_Tree").window
+        tree = self.GetDirTreePanelInfo().window
         assert tree is not None
         return tree
 
@@ -505,6 +551,23 @@ class VsFrame(wx.Frame):
 
     def OnExportAsTxt(self, event):
         pass
+
+    def OnToogleDirTree(self, event):
+        panel = self.GetDirTreePanelInfo()
+        panel.Show(not panel.IsShown())
+        self._mgr.Update()
+
+    def OnToogleToolBar(self, event):
+        panel = self.GetToolBarPanelInfo()
+        panel.Show(not panel.IsShown())
+        self._mgr.Update()
+
+    def OnMenuUpdateUI(self, event):
+        evId = event.GetId()
+        if evId == ID_Menu_ToogleDirectory:
+            event.Check(self.GetDirTreePanelInfo().IsShown())
+        elif evId == ID_Menu_ToogleToolBar:
+            event.Check(self.GetToolBarPanelInfo().IsShown())
 
     def OnRichtextContentChanged(self, event):
         parent, index, ctrl = self.GetCurrentView()
@@ -701,7 +764,22 @@ class VsFrame(wx.Frame):
     def ForwardEvent(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is not None:
+            event.Enable(True)
             ctrl.ProcessEvent(event)
+        else:
+            event.Enable(False)
+
+    def OnToolBarUpdateUI(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            event.Enable(True)
+            id = event.GetId()
+            if self.toolbar_updateui_funcs.has_key(id):
+                f = self.toolbar_updateui_funcs[id]
+                if f is not None:
+                    f(event)
+        else:
+            event.Enable(False)
 
     def OnUpdateBold(self, event):
         parent, index, ctrl = self.GetCurrentView()
