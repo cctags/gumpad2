@@ -16,6 +16,7 @@ import time
 import locale
 
 import zshelve
+import PyRTFParser
 
 from wx.lib.embeddedimage import PyEmbeddedImage
 
@@ -260,8 +261,7 @@ ID_Menu_CreateDir       = VsGenerateMenuId()
 ID_Menu_RenameEntry     = VsGenerateMenuId()
 ID_Menu_DeleteEntry     = VsGenerateMenuId()
 ID_Menu_Save            = VsGenerateMenuId()
-ID_Menu_ExportAsHtml    = VsGenerateMenuId()
-ID_Menu_ExportAsTxt     = VsGenerateMenuId()
+ID_Menu_SaveAs          = VsGenerateMenuId()
 ID_Menu_Exit            = VsGenerateMenuId()
 
 ID_Menu_ToogleDirectory = VsGenerateMenuId()
@@ -367,18 +367,14 @@ class VsFrame(wx.Frame):
         self.Bind(wx.EVT_MENU, self.OnCreateHtml, file_menu.Append(ID_Menu_CreateHtml, u"新建笔记"))
         self.Bind(wx.EVT_MENU, self.OnCreateDir, file_menu.Append(ID_Menu_CreateDir, u"新建目录"))
         file_menu.AppendSeparator()
-        self.Bind(wx.EVT_MENU, self.OnRenameEntry, file_menu.Append(ID_Menu_RenameEntry, u"重命名"))
-        self.Bind(wx.EVT_MENU, self.OnDeleteEntry, file_menu.Append(ID_Menu_RenameEntry, u"删除"))
-        file_menu.AppendSeparator()
-        self.Bind(wx.EVT_MENU, self.OnSave, file_menu.Append(ID_Menu_Save, u"保存"))
-        self.Bind(wx.EVT_MENU, self.OnExportAsHtml, file_menu.Append(ID_Menu_ExportAsHtml, u"另存为HTML"))
-        self.Bind(wx.EVT_MENU, self.OnExportAsTxt, file_menu.Append(ID_Menu_ExportAsTxt, u"另存为文本"))
+        DoBindMenuHandler(file_menu.Append(ID_Menu_Save, u"保存(&S)\tCtrl-S"), self.OnSave, self.OnMenuUpdateUI)
+        DoBindMenuHandler(file_menu.Append(ID_Menu_SaveAs, u"另存为(&A)"), self.OnSaveAs, self.OnMenuUpdateUI)
         file_menu.AppendSeparator()
         self.Bind(wx.EVT_MENU, self.OnExit, file_menu.Append(ID_Menu_Exit, u"退出(&X)"))
 
         ope_menu = wx.Menu()
-        DoBindMenuHandler(ope_menu.AppendCheckItem(ID_Menu_ToogleDirectory, u"显示目录树(&D)"), self.OnToogleDirTree, self.OnMenuUpdateUI)
-        DoBindMenuHandler(ope_menu.AppendCheckItem(ID_Menu_ToogleToolBar, u"显示工具栏(&T)"), self.OnToogleToolBar, self.OnMenuUpdateUI)
+        DoBindMenuHandler(ope_menu.AppendCheckItem(ID_Menu_ToogleDirectory, u"显示目录树(&D)\tCtrl-D"), self.OnToogleDirTree, self.OnMenuUpdateUI)
+        DoBindMenuHandler(ope_menu.AppendCheckItem(ID_Menu_ToogleToolBar, u"显示工具栏(&T)\tCtrl-T"), self.OnToogleToolBar, self.OnMenuUpdateUI)
         ope_menu.AppendSeparator()
         ope_menu.Append(ID_Menu_Search, u"查找(&I)")
 
@@ -546,11 +542,24 @@ class VsFrame(wx.Frame):
         handler.SaveStream(ctrl.GetBuffer(), s)
         self.db.SetBody(id, s.getvalue())
 
-    def OnExportAsHtml(self, event):
-        pass
+    def OnSaveAs(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        assert ctrl is not None
 
-    def OnExportAsTxt(self, event):
-        pass
+        # Display a File Save Dialog for RTF files
+        dlg = wx.FileDialog(self, "Choose a filename",
+                            wildcard=u'Rich Text Format files (*.rtf)|*.rtf',
+                            style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
+        if dlg.ShowModal() != wx.ID_OK:
+            return
+
+        # assign it to path
+        path = dlg.GetPath()
+        dlg.Destroy()
+
+        # Use the custom RTF Handler to save the file
+        handler = PyRTFParser.PyRichTextRTFHandler()
+        handler.SaveFile(ctrl.GetBuffer(), path)
 
     def OnToogleDirTree(self, event):
         panel = self.GetDirTreePanelInfo()
@@ -568,6 +577,12 @@ class VsFrame(wx.Frame):
             event.Check(self.GetDirTreePanelInfo().IsShown())
         elif evId == ID_Menu_ToogleToolBar:
             event.Check(self.GetToolBarPanelInfo().IsShown())
+        elif evId == ID_Menu_SaveAs or evId == ID_Menu_Save:
+            parent, index, ctrl = self.GetCurrentView()
+            exist = ctrl is not None
+            event.Enable(exist)
+            if evId == ID_Menu_Save and exist:
+                event.Enable(self.IsModified(index))
 
     def OnRichtextContentChanged(self, event):
         parent, index, ctrl = self.GetCurrentView()
