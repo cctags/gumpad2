@@ -36,7 +36,7 @@ except ImportError: # if it's not there locally, try the wxPython lib.
 
 import images
 
-program_name = "gumpad2"
+program_name = "Gumpad2"
 program_version = "v0.1.0"
 
 program_title = "%s %s" % (program_name, program_version)
@@ -243,6 +243,21 @@ class VsData:
             return False
         t = self.GetType(id)
         return VsData_Type_Html == t
+
+
+############################################################################
+#
+# VsConfig
+#
+
+class VsConfig:
+
+    def __init__(self):
+        pass
+
+def GetDefaultFont():
+    return wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, False, u"宋体", wx.FONTENCODING_SYSTEM)
+
 
 ############################################################################
 #
@@ -612,6 +627,9 @@ class VsFrame(wx.Frame):
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_CONTENT_INSERTED, self.OnRichtextContentChanged)
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_CONTENT_DELETED, self.OnRichtextContentChanged)
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_STYLE_CHANGED, self.OnRichtextContentChanged)
+
+        # 设置默认字体
+        ctrl.SetFont(GetDefaultFont())
 
         # 解析正文内容
         body = self.db.GetBody(id)
