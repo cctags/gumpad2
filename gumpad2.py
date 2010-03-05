@@ -319,6 +319,7 @@ ID_ToolBar_IndentLess   = VsGenerateMenuId()
 ID_ToolBar_IndentMore   = VsGenerateMenuId()
 ID_ToolBar_Font         = VsGenerateMenuId()
 ID_ToolBar_FontColor    = VsGenerateMenuId()
+ID_ToolBar_InsertPic    = VsGenerateMenuId()
 
 ID_Ctx_InsertAsSibling  = VsGenerateMenuId()
 ID_Ctx_InsertAsChild    = VsGenerateMenuId()
@@ -494,6 +495,9 @@ class VsFrame(wx.Frame):
 
         DoBind(tb.AddToggleTool(ID_ToolBar_Font, images._rt_font.GetBitmap(), wx.NullBitmap, False, None, "Font"), self.OnFont, self.OnToolBarUpdateUI)
         DoBind(tb.AddToggleTool(ID_ToolBar_FontColor, images._rt_colour.GetBitmap(), wx.NullBitmap, False, None, "Font Color"), self.OnColour, self.OnToolBarUpdateUI)
+
+        tb.AddSeparator()
+        DoBind(tb.AddToggleTool(ID_ToolBar_InsertPic, images.images.GetBitmap(), wx.NullBitmap, False, None, "Insert Picture"), self.OnInsertPicture, self.OnToolBarUpdateUI)
         tb.Realize()
 
         self.toolbar_updateui_funcs = {
@@ -507,6 +511,7 @@ class VsFrame(wx.Frame):
             ID_ToolBar_IndentMore: None,
             ID_ToolBar_Font: None,
             ID_ToolBar_FontColor: None,
+            ID_ToolBar_InsertPic: None,
         }
 
         return tb
@@ -943,6 +948,26 @@ class VsFrame(wx.Frame):
                     attr.SetTextColour(colour)
                     ctrl.SetStyle(r, attr)
         dlg.Destroy()
+
+    def OnInsertPicture(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        assert ctrl is not None
+
+        # 选择图片
+        dlg = wx.FileDialog(self, "Choose a file",
+                            defaultFile="",
+                            wildcard="All files (*.*)|*.*",
+                            style=wx.OPEN | wx.CHANGE_DIR)
+        if dlg.ShowModal() != wx.ID_OK:
+            return
+
+        # 加载图片，如果图片无效，则返回
+        image = wx.Image(dlg.GetPath())
+        if not image.IsOk():
+            return
+
+        # 插入图片
+        ctrl.WriteImage(image)
 
     def ForwardEvent(self, event):
         parent, index, ctrl = self.GetCurrentView()
