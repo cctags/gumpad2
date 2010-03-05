@@ -162,6 +162,30 @@ class VsData:
     def GetRoot(self):
         return self.db["tree"]
 
+    def SetRoot(self, dir_tree):
+        """更新目录树"""
+        self.set_root_tree_root = None
+        self.set_root_last_node = []
+        for i in dir_tree:
+            id = i[0]
+            path = i[1]
+            new = {"id": id, "subs": []}
+            if path == 0:
+                self.set_root_tree_root = new
+                self.set_root_last_node.append(new)
+            else:
+                while len(self.set_root_last_node) > path:
+                    self.set_root_last_node.pop()
+                assert len(self.set_root_last_node) == path
+
+                parent = self.set_root_last_node[-1]
+                parent["subs"].append(new)
+                self.set_root_last_node.append(new)
+
+        assert self.set_root_tree_root is not None
+        self.db["tree"] = self.set_root_tree_root
+        self.db.sync()
+
     def GenerateId(self):
         return str(uuid.uuid1())
 
@@ -296,6 +320,9 @@ ID_ToolBar_IndentMore   = VsGenerateMenuId()
 ID_ToolBar_Font         = VsGenerateMenuId()
 ID_ToolBar_FontColor    = VsGenerateMenuId()
 
+ID_Ctx_InsertAsSibling  = VsGenerateMenuId()
+ID_Ctx_InsertAsChild    = VsGenerateMenuId()
+
 
 ############################################################################
 #
@@ -330,6 +357,39 @@ class VsStatusBar(wx.StatusBar):
         t = time.localtime(time.time())
         str = time.strftime("[%Y-%m-%d %H:%M %A]", t)
         self.SetStatusText(str, 2)
+
+
+############################################################################
+#
+# VsTreeCtrl
+#
+
+class VsTreeCtrl(wx.TreeCtrl):
+    def __init__(self, parent, id, pos, size, style):
+        wx.TreeCtrl.__init__(self, parent, id, pos, size, style)
+
+    def Traverse(self, func, startNode):
+        """Apply 'func' to each node in a branch, beginning with 'startNode'. """
+        def TraverseAux(node, depth, func):
+            nc = self.GetChildrenCount(node, 0)
+            child, cookie = self.GetFirstChild(node)
+            # In wxPython 2.5.4, GetFirstChild only takes 1 argument
+            for i in xrange(nc):
+                func(child, depth)
+                TraverseAux(child, depth + 1, func)
+                child, cookie = self.GetNextChild(node, cookie)
+        func(startNode, 0)
+        TraverseAux(startNode, 1, func)
+
+    def ItemIsChildOf(self, item1, item2):
+        ''' Tests if item1 is a child of item2, using the Traverse function '''
+        self.result = False
+        def test_func(node, depth):
+            if node == item1:
+                self.result = True
+
+        self.Traverse(test_func, item2)
+        return self.result
 
 
 ############################################################################
@@ -514,6 +574,16 @@ class VsFrame(wx.Frame):
         assert tree is not None
         return tree
 
+    def GetDirTreeImageIndexByType(self, t):
+        if t == VsData_Type_Root:
+            return 0
+        elif t == VsData_Type_Dir:
+            return 0
+        elif t == VsData_Type_Html:
+            return 1
+        else:
+            assert False
+
     def GetView(self, index=None):
         parent = self.GetNotebook()
         if index is None:
@@ -535,6 +605,13 @@ class VsFrame(wx.Frame):
         if self.IsModified(index):
             str = "* " + str
         parent.SetPageText(index, str)
+
+    def SaveDirTree(self, tree):
+        self.save_dir_tree = []
+        tree.Traverse(lambda node, path: \
+            self.save_dir_tree.append((tree.GetItemPyData(node), path)),
+            tree.GetRootItem())
+        self.db.SetRoot(self.save_dir_tree)
 
     def OnSave(self, event):
         parent, index, ctrl = self.GetCurrentView()
@@ -674,6 +751,69 @@ class VsFrame(wx.Frame):
     def OnTreeEndLabelEdit(self, event):
         item = event.GetItem()
         wx.CallAfter(self.OnTreeEndLabelEdit_After, item, self.tree.GetItemText(item))
+
+    def OnTreeBeginDrag(self, event):
+        tree = event.GetEventObject()
+        self.drag_source = event.GetItem()
+        if self.drag_source != tree.GetRootItem():
+            event.Allow()
+        else:
+            event.Veto()
+
+    def OnTreeEndDrag(self, event):
+        drop_target = event.GetItem()
+        if not drop_target.IsOk():
+            return
+        tree = event.GetEventObject()
+        source_id = tree.GetItemPyData(self.drag_source)
+
+        # 不允许目标项是源项的子项
+        if tree.ItemIsChildOf(drop_target, self.drag_source):
+            tree.Unselect()
+            return
+
+        # One of the following methods of inserting will be called...
+        def MoveNodes(parent, target):
+            # 删除源项及子项
+            tree.Delete(self.drag_source)
+
+            # 将源项添加到目标位置
+            imgidx = self.GetDirTreeImageIndexByType(self.db.GetType(source_id))
+            title = self.db.GetTitle(source_id)
+            if target is not None:
+                new_item = tree.InsertItem(parent, target, title, imgidx)
+            else:
+                new_item = tree.InsertItemBefore(parent, 0, title, imgidx)
+            tree.SetItemPyData(new_item, source_id)
+
+            # 添加子项
+            dummy, t = self.db.GetTree(self.db.GetRoot(), source_id)
+            self.Tree_AddNode(t, new_item)
+
+            # 设置树结点属性
+            tree.ExpandAllChildren(new_item)
+            tree.SelectItem(new_item)
+
+            # 保存目录树
+            self.SaveDirTree(tree)
+
+        def InsertAsSibling(event):
+            MoveNodes(tree.GetItemParent(drop_target), drop_target)
+
+        def InsertAsChild(event):
+            MoveNodes(drop_target, None)
+
+        # 如果不是根项，则询问是作为目标项的兄弟项还是子项
+        if drop_target == tree.GetRootItem():
+            InsertAsChild(None)
+        else:
+            menu = wx.Menu()
+            menu.Append(ID_Ctx_InsertAsSibling, u"与目标项平级", "")
+            menu.Append(ID_Ctx_InsertAsChild, u"作为目标项的子项", "")
+            menu.UpdateUI()
+            menu.Bind(wx.EVT_MENU, InsertAsSibling, id=ID_Ctx_InsertAsSibling)
+            menu.Bind(wx.EVT_MENU, InsertAsChild, id=ID_Ctx_InsertAsChild)
+            self.PopupMenu(menu)
 
     def OnBold(self, event):
         parent, index, ctrl = self.GetCurrentView()
@@ -866,7 +1006,7 @@ class VsFrame(wx.Frame):
         cursel = tree.GetSelection()
         if cursel == tree.GetRootItem():
             menu.Enable(ID_Menu_DeleteEntry, False)
-        if tree.GetChildrenCount(cursel) > 0:
+        if tree.ItemHasChildren(cursel):
             menu.Enable(ID_Menu_DeleteEntry, False)
 
         self.PopupMenu(menu)
@@ -984,11 +1124,7 @@ class VsFrame(wx.Frame):
     def Tree_AddNode(self, db_node, node):
         for i in range(len(db_node["subs"])):
             child_id = db_node["subs"][i]["id"]
-            t = self.db.GetType(child_id)
-            if VsData_Type_Html == t:
-                imgidx = 1
-            else:
-                imgidx = 0
+            imgidx = self.GetDirTreeImageIndexByType(self.db.GetType(child_id))
             n = self.tree.AppendItem(node, self.db.GetTitle(child_id), imgidx)
             self.tree.SetItemPyData(n, child_id)
 
@@ -996,7 +1132,7 @@ class VsFrame(wx.Frame):
 
     def CreateTreeCtrl(self):
 
-        self.tree = wx.TreeCtrl(self, -1, wx.Point(0, 0), wx.Size(160, 250),
+        self.tree = VsTreeCtrl(self, -1, wx.Point(0, 0), wx.Size(200, 250),
                            wx.TR_DEFAULT_STYLE | wx.NO_BORDER | wx.TR_EDIT_LABELS | wx.TR_NO_BUTTONS)
 
         imglist = wx.ImageList(16, 16, True, 2)
@@ -1017,6 +1153,8 @@ class VsFrame(wx.Frame):
         self.tree.Bind(wx.EVT_RIGHT_UP, self.OnRightUp)
         self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnTreeItemActivated)
         self.tree.Bind(wx.EVT_TREE_END_LABEL_EDIT, self.OnTreeEndLabelEdit)
+        self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
+        self.tree.Bind(wx.EVT_TREE_END_DRAG, self.OnTreeEndDrag)
 
         return self.tree
 
