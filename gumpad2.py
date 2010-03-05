@@ -41,7 +41,7 @@ program_version = "v0.1.0"
 
 program_title = "%s %s" % (program_name, program_version)
 
-program_dbpath = "%s.db" % (program_name)
+program_dbpath = "%s.db" % (program_name.lower())
 
 program_main_icon = os.path.join(dirName, "main.ico")
 
@@ -638,9 +638,13 @@ class VsFrame(wx.Frame):
         parent, index, ctrl = self.GetCurrentView()
         assert ctrl is not None
 
+        # 默认的文件名
+        default_title = parent.GetPageText(index)
+
         # Display a File Save Dialog for RTF files
         dlg = wx.FileDialog(self, "Choose a filename",
                             wildcard=u'Rich Text Format files (*.rtf)|*.rtf',
+                            defaultFile=default_title,
                             style=wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT)
         if dlg.ShowModal() != wx.ID_OK:
             return
