@@ -1,0 +1,73 @@
+Gumpad2 - a simple richtext notepad
+sherking@gmail.com
+
+%!options: --encoding=utf-8
+
+这份文档的最新版本位于 http://code.google.com/p/gumpad2/source/browse/trunk/README
+
++说明+
+
+Gumpad2 是一个简单的富文本笔记工具，支持树形结构，支持 RTF 格式的导出。
+
+为什么工具名字里有个2呢？原来的名字是没有2的，只是这个名字被一个印度程序员在 [googlecode http://code.google.com/hosting/] 里用掉了，所以这里只好加个2了。
+
+
++开发环境+
+
+++使用的 python 版本++
+
+- python 2.6.1
+- wxPython 2.8.10.1 unicode
+
+
+目前仅在 Windows XP 下测试过。
+
+++使用到的其他模块++
+
+这些模块已经添加，不需要额外下载。
+
+- zshelve @ http://code.google.com/p/zshelve/ (by jhuangjiahua)
+- PyRTFParser @ http://www.transana.org/developers/PyRTFParser/ (by David Woods)
+
+
+感谢他们无私的分享。
+
+另外，还参考了 wxPython 里的 AUI、RichTextCtrl 等例子。简单地说，整个工具也就是这些例子的堆砌而已。
+
++使用说明+
+
+++命令行参数++
+
+```
+Usage: Gumpad2 [-f <file>] [-h] [-v]
+
+Options:
+  -h, --help            show this help message and exit
+  -v, --version         print the version number of the executable and exit
+  -f FILE, --file=FILE  specify the data file
+```
+
+其中 -f 参数可以指定所使用的文件，不使用这个选项时，默认使用 ~/gumpad2.db。
+
+/* TODO */
+
++修改记录+
+
+**__v0.1.1:__**
+
+- 实现了目录树结构的拖拽调整
+- 实现了以 RTF 格式导出内容
+- 实现了状态栏里显示当前正在使用的文件，以及当前系统时间
+- 实现了命令行参数，即可以在命令行下指定 ~/gumpad2.db 以外的文件
+- 修复若干 BUG
+
+
+**__v0.1.0:__**
+
+- Initial directory structure
+
+
+----------------------------------------------------------------------
+//更新：%%mtime(%Y-%m-%d)//
+
+% vim: ft=txt2tags

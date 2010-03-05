@@ -37,7 +37,7 @@ except ImportError: # if it's not there locally, try the wxPython lib.
 import images
 
 program_name = "Gumpad2"
-program_version = "v0.1.0"
+program_version = "v0.1.1"
 
 program_title = "%s %s" % (program_name, program_version)
 
@@ -737,13 +737,16 @@ class VsFrame(wx.Frame):
 
     def OnTreeEndLabelEdit_After(self, item, old_text):
         """更新 title，如果已经打开，则同步更新"""
-        s = self.tree.GetItemText(item)
-        s = s.strip()
-        if old_text == s:
-            return
+        item_text = self.tree.GetItemText(item)
+        s = item_text.strip()
 
         # 更新目录树里的显示
-        self.tree.SetItemText(item, s.strip())
+        if s != item_text:
+            self.tree.SetItemText(item, s)
+
+        # 如果没有变化，则直接返回
+        if old_text == s:
+            return
 
         # 更新数据
         id = self.tree.GetItemPyData(item)
