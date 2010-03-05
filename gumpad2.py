@@ -439,8 +439,8 @@ class VsFrame(wx.Frame):
                 self.Bind(wx.EVT_UPDATE_UI, updateUI, item)
 
         file_menu = wx.Menu()
-        self.Bind(wx.EVT_MENU, self.OnCreateHtml, file_menu.Append(ID_Menu_CreateHtml, u"新建笔记"))
-        self.Bind(wx.EVT_MENU, self.OnCreateDir, file_menu.Append(ID_Menu_CreateDir, u"新建目录"))
+        DoBindMenuHandler(file_menu.Append(ID_Menu_CreateHtml, u"新建笔记"), self.OnCreateHtml, self.OnMenuUpdateUI)
+        DoBindMenuHandler(file_menu.Append(ID_Menu_CreateDir, u"新建目录"), self.OnCreateDir, self.OnMenuUpdateUI)
         file_menu.AppendSeparator()
         DoBindMenuHandler(file_menu.Append(ID_Menu_Save, u"保存(&S)\tCtrl-S"), self.OnSave, self.OnMenuUpdateUI)
         DoBindMenuHandler(file_menu.Append(ID_Menu_SaveAs, u"另存为(&A)"), self.OnSaveAs, self.OnMenuUpdateUI)
@@ -679,6 +679,9 @@ class VsFrame(wx.Frame):
             event.Enable(exist)
             if evId == ID_Menu_Save and exist:
                 event.Enable(self.IsModified(index))
+        elif evId == ID_Menu_CreateHtml or evId == ID_Menu_CreateDir:
+            # 目录树隐藏时，禁用菜单里的新建功能
+            event.Enable(self.GetDirTreePanelInfo().IsShown())
 
     def OnRichtextContentChanged(self, event):
         parent, index, ctrl = self.GetCurrentView()
