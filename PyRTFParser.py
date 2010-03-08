@@ -19,6 +19,7 @@
 
 __author__ = 'David Woods <dwoods@wcer.wisc.edu>'
 # Based on work by Donald N. Allingham and Gary Shao in 2000 and 2002 respectively
+# Thanks to Tim Morton for help with output optimization
 
 DEBUG = False   # Shows debug messages
 DEBUG2 = True   # Shows unknown control words, not those explicitly ignored
@@ -95,7 +96,19 @@ class PyRichTextRTFHandler(richtext.RichTextFileHandler):
                          filename   the name of the file to be loaded """
         if os.path.exists(filename) and isinstance(ctrl, richtext.RichTextCtrl):
             # Use the RTFToRichTextCtrlParser to handle the file load
-            RTFTowxRichTextCtrlParser(ctrl, filename, self.GetEncoding)
+            RTFTowxRichTextCtrlParser(ctrl, filename=filename, encoding=self.GetEncoding)
+            # There's no feedback from the Parser, so we'll just assume things loaded.
+            return True
+        else:
+            return False
+
+    def LoadBuffer(self, ctrl, buf):
+        """ Load the contents of a Rich Text Format file into a wxRichTextCtrl.
+            Parameters:  ctrl       a wxRichTextCtrl.  (NOT a wxRichTextBuffer.  The wxRichTextBuffer lacks methods for direct manipulation.)
+                         buf        the RTF string data to be loaded """
+        if (len(buf) > 0) and isinstance(ctrl, richtext.RichTextCtrl):
+            # Use the RTFToRichTextCtrlParser to handle the file load
+            RTFTowxRichTextCtrlParser(ctrl, buf=buf, encoding=self.GetEncoding)
             # There's no feedback from the Parser, so we'll just assume things loaded.
             return True
         else:
@@ -246,8 +259,8 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
         # define an initial color table
         self.colorTable = ['#000000', '#FF0000', '#00FF00', '#0000FF', '#FFFFFF']
 
-        # Define the parsed text output
-        self.outputString = ''
+        # Define the parsed text output  (cStringIO used for the speed improvements it provides!)
+        self.outputString = cStringIO.StringIO()
 
         # Define a variable for tracking what element we are changing
         self.element = ''
@@ -424,7 +437,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                 # ... signal that we have a PNG image to process ...
                 self.elementType = "ImagePNG"
                 # ... and start the RTF code for a PNG image block
-                self.outputString += '{\pict\pngblip '
+                self.outputString.write('{\pict\pngblip ')
             # It appears to me that all images will be PNG images coming from the RichTextCtrl.
             else:
                 # if not, signal a unknown image type
@@ -464,7 +477,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
             # If we have a bullet or numbered list specification ...
             if self.paragraphAttributes[u'paragraph'][u'bulletstyle'] != None:
             # ... indicate that in the RTF output string
-                self.outputString += '{\\listtext\\pard\\plain'
+                self.outputString.write('{\\listtext\\pard\\plain')
 
                 # Convert the Bullet Style to a hex string so we can interpret it correctly.
                 # (I'm sure there's a better way to do this!)
@@ -473,7 +486,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                 # If we have a known symbol bullet (TEXT_ATTR_BULLET_STYLE_SYMBOL and defined bulletsymbol) ...
                 if (styleHexStr[2] == '2') and (self.paragraphAttributes[u'paragraph'][u'bulletsymbol'] != None):
                     # ... add that to the RTF Output String
-                    self.outputString += "\\f%s %s\\tab}" % (self.fontTable.index(self.fontAttributes[name][u'fontface']), chr(int(self.paragraphAttributes[u'paragraph'][u'bulletsymbol'])))
+                    self.outputString.write("\\f%s %s\\tab}" % (self.fontTable.index(self.fontAttributes[name][u'fontface']), chr(int(self.paragraphAttributes[u'paragraph'][u'bulletsymbol']))))
 
                 # if the second characters is a "2", we have richtext.TEXT_ATTR_BULLET_STYLE_STANDARD
                 elif (styleHexStr[1] == '2'):
@@ -482,7 +495,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                         # ... then add it now.
                         self.fontTable.append('Symbol')
                     # add the bullet symbol in Symbol font to the RTF Output String
-                    self.outputString += "\\f%s \\'b7\\tab}" % self.fontTable.index('Symbol')
+                    self.outputString.write("\\f%s \\'b7\\tab}" % self.fontTable.index('Symbol'))
 
                 # If we have a know bullet NUMBER (i.e. a numbered list) ...
                 elif self.paragraphAttributes[u'paragraph'][u'bulletnumber'] != None:
@@ -523,29 +536,29 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                         numberTrailingChar = ')'
 
                     # ... add that to the RTF Output String
-                    self.outputString += "\\f%s %s%s%s\\tab}" % (self.fontTable.index(self.fontAttributes[name][u'fontface']), numberLeadingChar, numberChar, numberTrailingChar)
+                    self.outputString.write("\\f%s %s%s%s\\tab}" % (self.fontTable.index(self.fontAttributes[name][u'fontface']), numberLeadingChar, numberChar, numberTrailingChar))
 
                 # If we have a know bullet symbol ...
                 elif self.paragraphAttributes[u'paragraph'][u'bulletsymbol'] != None:
                     # ... add that to the RTF Output String
-                    self.outputString += "\\f%s %s\\tab}" % (self.fontTable.index(self.fontAttributes[name][u'fontface']), unichr(int(self.paragraphAttributes[u'paragraph'][u'bulletsymbol'])))
+                    self.outputString.write("\\f%s %s\\tab}" % (self.fontTable.index(self.fontAttributes[name][u'fontface']), unichr(int(self.paragraphAttributes[u'paragraph'][u'bulletsymbol']))))
 
                 # If we still don't know what kind of bullet we have, we're in trouble.
                 else:
                     print "PyRTFParser.startElement() SYMBOL INSERTION FAILURE"
 
             # Signal the start of a new paragraph in the RTF output string
-            self.outputString += '\\pard'
+            self.outputString.write('\\pard')
 
             # Paragraph alignment left is u'1'
             if self.paragraphAttributes[u'paragraph'][u'alignment'] == u'1':
-                self.outputString += '\\ql'
+                self.outputString.write('\\ql')
             # Paragraph alignment centered is u'2'
             elif self.paragraphAttributes[u'paragraph'][u'alignment'] == u'2':
-                self.outputString += '\\qc'
+                self.outputString.write('\\qc')
             # Paragraph alignment right is u'3'
             elif self.paragraphAttributes[u'paragraph'][u'alignment'] == u'3':
-                self.outputString += '\\qr'
+                self.outputString.write('\\qr')
             else:
                 print "Unknown alignment:", self.paragraphAttributes[u'paragraph'][u'alignment'], type(self.paragraphAttributes[u'paragraph'][u'alignment'])
 
@@ -556,12 +569,12 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
             elif self.paragraphAttributes[u'paragraph'][u'linespacing'] == u'15':
                 # I'm not exactly sure why spacing for lines of 360, a multiple of normal, is the right specifier,
                 # but that seems to be what Word uses.
-                self.outputString += '\\sl360\\slmult1'
+                self.outputString.write('\\sl360\\slmult1')
             # double line spacing is u'20'
             elif self.paragraphAttributes[u'paragraph'][u'linespacing'] == u'20':
                 # I'm not exactly sure why spacing for lines of 480, a multiple of normal, is the right specifier,
                 # but that seems to be what Word uses.
-                self.outputString += '\\sl480\\slmult1'
+                self.outputString.write('\\sl480\\slmult1')
             else:
                 print "Unknown linespacing:", self.paragraphAttributes[u'paragraph'][u'linespacing'], type(self.paragraphAttributes[u'paragraph'][u'linespacing'])
 
@@ -580,13 +593,13 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
             rightMargin = self.twips(rightindent / 100.0)
             firstIndent = self.twips((firstlineindent) / 100.0)
             # Now add these values to the RTF output string
-            self.outputString += '\\li%d\\ri%d\\fi%d' % (leftMargin, rightMargin, firstIndent)
+            self.outputString.write('\\li%d\\ri%d\\fi%d' % (leftMargin, rightMargin, firstIndent))
 
             # Add non-zero Spacing before and after paragraphs to the RTF output String
             if int(self.paragraphAttributes[u'paragraph'][u'parspacingbefore']) != 0:
-                self.outputString += '\\sb%d' % self.twips(int(self.paragraphAttributes[u'paragraph'][u'parspacingbefore']) / 100.0)
+                self.outputString.write('\\sb%d' % self.twips(int(self.paragraphAttributes[u'paragraph'][u'parspacingbefore']) / 100.0))
             if int(self.paragraphAttributes[u'paragraph'][u'parspacingafter']) != 0:
-                self.outputString += '\\sa%d' % self.twips(int(self.paragraphAttributes[u'paragraph'][u'parspacingafter']) / 100.0)
+                self.outputString.write('\\sa%d' % self.twips(int(self.paragraphAttributes[u'paragraph'][u'parspacingafter']) / 100.0))
 
             # If Tabs are defined ...
             if self.paragraphAttributes[u'paragraph'][u'tabs'] != None:
@@ -597,25 +610,25 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                     # ... (assuming the data isn't empty) ...
                     if x != u'':
                         # ... add the tab stop data to the RTF output string
-                        self.outputString += '\\tx%d' % self.twips(int(x) / 100.0)
+                        self.outputString.write('\\tx%d' % self.twips(int(x) / 100.0))
 
         # Add Font formatting when we process text or symbol tags, as text and symbol specs can modify paragraph-level font specifications
         if name in [u'text', u'symbol']:
             # Begin an RTF block
-            self.outputString += '{'
+            self.outputString.write('{')
             # Add Font Face information
-            self.outputString += '\\f%d' % self.fontTable.index(self.fontAttributes[name][u'fontface'])
+            self.outputString.write('\\f%d' % self.fontTable.index(self.fontAttributes[name][u'fontface']))
             # Add Font Size information
-            self.outputString += '\\fs%d' % (int(self.fontAttributes[name][u'fontsize']) * 2)
+            self.outputString.write('\\fs%d' % (int(self.fontAttributes[name][u'fontsize']) * 2))
             # If bold, add Bold
             if self.fontAttributes[name][u'fontweight'] == str(wx.FONTWEIGHT_BOLD):
-                self.outputString += '\\b'
+                self.outputString.write('\\b')
             # If Italics, add Italics
             if self.fontAttributes[name][u'fontstyle'] == str(wx.FONTSTYLE_ITALIC):
-                self.outputString += '\\i'
+                self.outputString.write('\\i')
             # If Underline, add Underline
             if self.fontAttributes[name][u'fontunderlined'] == u'1':
-                self.outputString += '\\ul'
+                self.outputString.write('\\ul')
             # If Text Color is not black ...
             if self.fontAttributes[name][u'textcolor'] != '#000000':
                 # Check the color table.  If the color is not there ...
@@ -623,7 +636,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                     # ... add it to the color table
                     self.colorTable.append(self.fontAttributes[name][u'textcolor'])
                 # ... Add text foreground color
-                self.outputString += '\\cf%d' % self.colorTable.index(self.fontAttributes[name][u'textcolor'])
+                self.outputString.write('\\cf%d' % self.colorTable.index(self.fontAttributes[name][u'textcolor']))
             # If Text Background Color is not White ...
             if self.fontAttributes[name][u'bgcolor'] != '#FFFFFF':
                 # Check the color table.  If the color is not there ...
@@ -632,11 +645,11 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                     self.colorTable.append(self.fontAttributes[name][u'bgcolor'])
                 # ... Add text background color to the RTF output string
                 # Replaced "cb" with "highlight" for WORD compatibility.  "cb" works in OS X TextEdit.
-                # self.outputString += '\\cb%d' % self.colorTable.index(self.fontAttributes[name][u'bgcolor'])
-                self.outputString += '\\highlight%d' % self.colorTable.index(self.fontAttributes[name][u'bgcolor'])
+                # self.outputString.write('\\cb%d' % self.colorTable.index(self.fontAttributes[name][u'bgcolor']))
+                self.outputString.write('\\highlight%d' % self.colorTable.index(self.fontAttributes[name][u'bgcolor']))
 
             # Done with formatting string.  Add a space to terminate the formatting block, but don't close the text block yet.
-            self.outputString += ' '
+            self.outputString.write(' ')
 
 
     def characters(self, data):
@@ -650,7 +663,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
             # If we have a value in self.URL, populated in startElement, ...
             if self.url != '':
                 # ... then we're in the midst of a hyperlink.  Let's specify the URL for the RTF output string.
-                self.outputString += '{\\field{\\*\\fldinst HYPERLINK "%s"}{\\fldrslt ' % self.url
+                self.outputString.write('{\\field{\\*\\fldinst HYPERLINK "%s"}{\\fldrslt ' % self.url)
 
             # If we have a single character in the data specification ...
             if len(data) == 1:
@@ -658,12 +671,12 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                 if (data == '<') or (data == '>') or ord(data[0]) > 127:
                     # ... add the character NUMBER as a unicode character to the RTF.
                     # (NOTE:  This syntax is probably only correct under UTF8 encoding!)
-                    self.outputString += "\\u%d\\'3f" % ord(data[0])
+                    self.outputString.write("\\u%d\\'3f" % ord(data[0]))
                 # Otherwise, if we have something other than a quotation mark character ...
                 elif data != '"':
                     # ... then add the encoded character to the RTF output string.  Since we're in the first 127 characters
                     # here, the encoding probably does nothing.
-                    self.outputString += data.encode(self.encoding)
+                    self.outputString.write(data.encode(self.encoding))
 
                 # Transana requires special processing of Time Codes, with their "hidden" data
                 if IN_TRANSANA:
@@ -676,7 +689,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                         # ... signal that we're no longer in the time code ...
                         self.inTimeCode = False
                         # ... and add a space to finish the time code specification.
-                        self.outputString += ' '
+                        self.outputString.write(' ')
 
             # If we don't have a single character
             else:
@@ -693,12 +706,12 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                 # I'm not sure why, but this causes problems in the RTF.  Therefore skip this combo in Transana
                 if not (IN_TRANSANA and (data == ' "')):
                     # Encode the data and add it to the RTF output string
-                    self.outputString += data.encode(self.encoding)
+                    self.outputString.write(data.encode(self.encoding))
 
             # If we've just added a URL hyperlink ...
             if self.url != '':
                 # ... we need to close the link field RTF block
-                self.outputString += '}}'
+                self.outputString.write('}}')
                 # Reset the URL to empty, as we're done with it.
                 self.url = ''
 
@@ -710,7 +723,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
                 # Convert the symbol data to the appropriate unicode character
                 data = unichr(int(data))
                 # Add that unicode character to the RTF output string
-                self.outputString += data.encode(self.encoding)
+                self.outputString.write(data.encode(self.encoding))
 
 
         # If the characters come from a data element ...
@@ -718,7 +731,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
             # If we're expecting a PNG Image ...
             if self.elementType == 'ImagePNG':
                 # ... we can just add the data's data to the RTF output string
-                self.outputString += data
+                self.outputString.write(data)
             # I haven't seen anything but PNG image data in this data structure from the RichTextCtrl's XML data
             else:
                 # If we're dealing with an image, we could convert the image to PNG, then do a Hex conversion.
@@ -738,11 +751,11 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
         # If we have a text, data, or symbol end tag ...
         if name in [u'text', u'data', u'symbol']:
             # ... we need to close the RTF block
-            self.outputString += '}'
+            self.outputString.write('}')
         # If we have a paragraph end tag ...
         elif name in [u'paragraph']:
             # ... we need to add the end paragraph RTF information
-            self.outputString += '\par\n'
+            self.outputString.write('\par\n')
         # If we have a text, data, paragraph, paragraphlayout, or richtext end tag ...
         if name in [u'text', u'data', u'paragraph', u'paragraphlayout', u'richtext']:
             # ... we need to clear the element type, as we're no longer processing that type of element!
@@ -796,7 +809,7 @@ class XMLToRTFHandler(xml.sax.handler.ContentHandler):
         f.write('\\widowctrl\n')
 
         # now add the RTF output string from the XML parser
-        f.write(self.outputString)
+        f.write(self.outputString.getvalue())
 
         # Close the RTF document string
         f.write('}')
@@ -815,12 +828,16 @@ class RTFTowxRichTextCtrlParser:
         Transana (htp://www.transana.org) needs Rich Text Format features supported.
         by David K. Woods (dwoods@wcer.wisc.edu) """
 
-    def __init__(self, txtCtrl, filename, encoding='utf8'):
-        """ Initialize the RTFToRichTextCtrlParser
+    def __init__(self, txtCtrl, filename=None, buf=None, encoding='utf8'):
+        """ Initialize the RTFToRichTextCtrlParser.
+
             Parameters:  txtCtrl          a wx.RichTextCtrl, NOT a wx.RichTextBuffer.  The buffer doesn't provide an easy way to add text!
-                         filename         a Rich Text Format (*.rtf) file name
+                         filename=None    a Rich Text Format (*.rtf) file name
+                         buf=None         a string with RTF-encoded data
                          encoding='utf8'  Character Encoding to use (only utf8 has been tested, and I don't
-                                          think the RTF Parser decodes yet. """
+                                          think the RTF Parser decodes yet.
+
+            You can pass in either a filename or a buffer string.  If both are passed, only the file will be imported.  """
 
         # Remember the wxRichTextCtrl to populate
         self.txtCtrl = txtCtrl
@@ -848,6 +865,9 @@ class RTFTowxRichTextCtrlParser:
             self.buffer = f.read()
             # ... and close the file
             f.close()
+        # If there's a buffer string passed in ...
+        elif buf != None:
+            self.buffer = buf
         # If there's nothing to read ...
         else:
             # ... create an empty buffer variable
