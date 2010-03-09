@@ -305,7 +305,8 @@ ID_Menu_Exit            = VsGenerateMenuId()
 
 ID_Menu_ToogleDirectory = VsGenerateMenuId()
 ID_Menu_ToogleToolBar   = VsGenerateMenuId()
-ID_Menu_Search          = VsGenerateMenuId()
+ID_Menu_FindItem        = VsGenerateMenuId()
+ID_Menu_FindNextItem    = VsGenerateMenuId()
 
 ID_Menu_About           = VsGenerateMenuId()
 
@@ -430,6 +431,14 @@ class VsFrame(wx.Frame):
         self.CreateMenuBar()
         self.BuildPanes()
 
+        # 查找功能
+        self.finddlg = None
+        self.finddata = wx.FindReplaceData()
+        self.finddata.SetFlags(wx.FR_DOWN)
+        self.Bind(wx.EVT_FIND, self.OnFind)
+        self.Bind(wx.EVT_FIND_NEXT, self.OnFind)
+        self.Bind(wx.EVT_FIND_CLOSE, self.OnFindClose)
+
     def CreateMenuBar(self):
         """创建菜单"""
         mb = wx.MenuBar()
@@ -452,7 +461,8 @@ class VsFrame(wx.Frame):
         DoBindMenuHandler(ope_menu.AppendCheckItem(ID_Menu_ToogleDirectory, u"显示目录树(&D)\tCtrl-D"), self.OnToogleDirTree, self.OnMenuUpdateUI)
         DoBindMenuHandler(ope_menu.AppendCheckItem(ID_Menu_ToogleToolBar, u"显示工具栏(&T)\tCtrl-T"), self.OnToogleToolBar, self.OnMenuUpdateUI)
         ope_menu.AppendSeparator()
-        ope_menu.Append(ID_Menu_Search, u"查找(&I)")
+        DoBindMenuHandler(ope_menu.Append(ID_Menu_FindItem, u"查找(&F)\tCtrl-F"), self.OnFindItem, self.OnMenuUpdateUI)
+        DoBindMenuHandler(ope_menu.Append(ID_Menu_FindNextItem, u"查找下一个(&N)\tF3"), self.OnFindNextItem, self.OnMenuUpdateUI)
 
         help_menu = wx.Menu()
         self.Bind(wx.EVT_MENU, self.OnAbout, help_menu.Append(ID_Menu_About, u"关于(&A)..."))
@@ -672,19 +682,76 @@ class VsFrame(wx.Frame):
         panel.Show(not panel.IsShown())
         self._mgr.Update()
 
+    def OnFind(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        assert ctrl is not None
+
+        end = ctrl.GetLastPosition()
+        textstring = ctrl.GetRange(0, end).lower()
+        findstring = self.finddata.GetFindString().lower()
+        backward = not (self.finddata.GetFlags() & wx.FR_DOWN)
+        if backward:
+            start = ctrl.GetSelection()[0]
+            loc = textstring.rfind(findstring, 0, start)
+        else:
+            start = ctrl.GetSelection()[1]
+            loc = textstring.find(findstring, start)
+        if loc == -1 and start != 0:
+            # string not found, start at beginning
+            if backward:
+                start = end
+                loc = textstring.rfind(findstring, 0, start)
+            else:
+                start = 0
+                loc = textstring.find(findstring, start)
+        if loc == -1:
+            dlg = wx.MessageDialog(self, u"搜索字符串未找到！",
+                          program_name, wx.OK | wx.ICON_EXCLAMATION)
+            dlg.ShowModal()
+            dlg.Destroy()
+        if self.finddlg:
+            if loc == -1:
+                self.finddlg.SetFocus()
+                return
+            else:
+                self.finddlg.Destroy()
+                self.finddlg = None
+        ctrl.ShowPosition(loc)
+        ctrl.SetSelection(loc, loc + len(findstring))
+
+    def OnFindClose(self, event):
+        event.GetDialog().Destroy()
+        self.finddlg = None
+
+    def OnFindItem(self, event):
+        if self.finddlg is not None:
+            return
+
+        parent, index, ctrl = self.GetCurrentView()
+        assert ctrl is not None
+
+        self.finddlg = wx.FindReplaceDialog(self, self.finddata, "Find")
+        self.finddlg.Show(True)
+
+    def OnFindNextItem(self, event):
+        if self.finddata.GetFindString():
+            self.OnFind(event)
+        else:
+            self.OnFindItem(event)
+
     def OnMenuUpdateUI(self, event):
         evId = event.GetId()
         if evId == ID_Menu_ToogleDirectory:
             event.Check(self.GetDirTreePanelInfo().IsShown())
         elif evId == ID_Menu_ToogleToolBar:
             event.Check(self.GetToolBarPanelInfo().IsShown())
-        elif evId == ID_Menu_SaveAs or evId == ID_Menu_Save:
+        elif evId in (ID_Menu_Save, ID_Menu_SaveAs, ID_Menu_FindItem, ID_Menu_FindNextItem):
             parent, index, ctrl = self.GetCurrentView()
             exist = ctrl is not None
             event.Enable(exist)
             if evId == ID_Menu_Save and exist:
                 event.Enable(self.IsModified(index))
-        elif evId == ID_Menu_CreateHtml or evId == ID_Menu_CreateDir:
+        elif evId in (ID_Menu_CreateHtml, ID_Menu_CreateDir):
             # 目录树隐藏时，禁用菜单里的新建功能
             event.Enable(self.GetDirTreePanelInfo().IsShown())
 
