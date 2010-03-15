@@ -1162,6 +1162,7 @@ class VsFrame(wx.Frame):
         # 如果已经打开，则关闭
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
+                del self.editor_list[i]
                 self.GetNotebook().DeletePage(i)
                 break
 
