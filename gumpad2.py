@@ -37,7 +37,7 @@ except ImportError:  # if it's not there locally, try the wxPython lib.
 import images
 
 program_name = "Gumpad2"
-program_version = "v0.1.1"
+program_version = "v0.1.2"
 
 program_title = "%s %s" % (program_name, program_version)
 
