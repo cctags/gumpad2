@@ -759,6 +759,18 @@ class VsFrame(wx.Frame):
             # 目录树隐藏时，禁用菜单里的新建功能
             event.Enable(self.GetDirTreePanelInfo().IsShown())
 
+    def OnCopy(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.Copy()
+            wx.TheClipboard.Flush()
+
+    def OnCut(self, event):
+        parent, index, ctrl = self.GetCurrentView()
+        if ctrl is not None:
+            ctrl.Cut()
+            wx.TheClipboard.Flush()
+
     def OnRichtextContentChanged(self, event):
         parent, index, ctrl = self.GetCurrentView()
         assert index is not None
@@ -787,6 +799,8 @@ class VsFrame(wx.Frame):
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_CONTENT_INSERTED, self.OnRichtextContentChanged)
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_CONTENT_DELETED, self.OnRichtextContentChanged)
         ctrl.Bind(wx.richtext.EVT_RICHTEXT_STYLE_CHANGED, self.OnRichtextContentChanged)
+        ctrl.Bind(wx.EVT_MENU, self.OnCopy, id=wx.ID_COPY)
+        ctrl.Bind(wx.EVT_MENU, self.OnCut, id=wx.ID_CUT)
 
         # 设置默认字体
         ctrl.SetFont(GetDefaultFont())
@@ -1043,10 +1057,7 @@ class VsFrame(wx.Frame):
     def ForwardEvent(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is not None:
-            event.Enable(True)
             ctrl.ProcessEvent(event)
-        else:
-            event.Enable(False)
 
     def OnToolBarUpdateUI(self, event):
         parent, index, ctrl = self.GetCurrentView()
@@ -1218,7 +1229,7 @@ class VsFrame(wx.Frame):
         info = wx.AboutDialogInfo()
         info.Name = program_name
         info.Version = program_version
-        info.Copyright = "(C) 2010 sherking@gmail.com"
+        info.Copyright = "(C) 2010-2011 sherking@gmail.com"
         info.Description = wx.lib.wordwrap.wordwrap(
             program_name + " is a simple richtext notepad.\n\nTHIS SOFTWARE COMES WITH ABSOLUTELY NO WARRANTY! USE AT YOUR OWN RISK!",
             430, wx.ClientDC(self))
