@@ -28,6 +28,7 @@ Gumpad2 是一个简单的富文本笔记工具，支持树形结构，支持 RT
 
 - zshelve @ http://code.google.com/p/zshelve/ (by jhuangjiahua)
 - PyRTFParser @ http://www.transana.org/developers/PyRTFParser/ (by David Woods)
+- XTEA @ http://code.activestate.com/recipes/496737/ (by Paul Chakravarti)
 
 
 感谢他们无私的分享。

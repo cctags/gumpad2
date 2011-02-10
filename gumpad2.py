@@ -14,9 +14,11 @@ import optparse
 import StringIO
 import time
 import locale
+import hashlib
 
 import zshelve
 import PyRTFParser
+import xtea
 
 from wx.lib.embeddedimage import PyEmbeddedImage
 
@@ -94,7 +96,7 @@ class VsTempFile:
 # data format:
 #   version:    xx
 #   magic:      xx
-#   [uuid]:     {type: xx, title: xx, body: xx}, type = (root, dir, html)
+#   [uuid]:     {type: xx, title: xx, body: xx, xtea: sha1sum}, type = (root, dir, html)
 #   tree:       item = {id: xx, subs: [item *]}
 #
 
@@ -262,6 +264,27 @@ class VsData:
             id = self.db["tree"]["id"]
         return self.db[id]["type"]
 
+    def SetXtea(self, id, key):
+        assert not self.HasXtea(id)
+        t = self.db[id]
+        t["xtea"] = hashlib.sha1(key).hexdigest()
+        self.db[id] = t
+        self.db.sync()
+
+    def ClearXtea(self, id):
+        assert self.HasXtea(id)
+        t = self.db[id]
+        del t["xtea"]
+        self.db[id] = t
+        self.db.sync()
+
+    def HasXtea(self, id):
+        return self.db[id].has_key("xtea")
+
+    def CheckXtea(self, id, key):
+        assert self.HasXtea(id)
+        return self.db[id]["xtea"] == hashlib.sha1(key).hexdigest()
+
     def IsEditable(self, id=None):
         """判断指定Id对应的内容是否允许编辑"""
         if id is None:
@@ -305,6 +328,7 @@ ID_Menu_DeleteEntry     = VsGenerateMenuId()
 ID_Menu_Save            = VsGenerateMenuId()
 ID_Menu_SaveAs          = VsGenerateMenuId()
 ID_Menu_Exit            = VsGenerateMenuId()
+ID_Menu_Encrypt         = VsGenerateMenuId()
 
 ID_Menu_ToogleDirectory = VsGenerateMenuId()
 ID_Menu_ToogleToolBar   = VsGenerateMenuId()
@@ -413,7 +437,8 @@ class VsFrame(wx.Frame):
 
         self.db = VsData(program_dbpath)
         self.tree = None
-        self.editor_list = []
+        self.editor_list = []   # [id, ctrl, modified]
+        self.passwd_map = {}    # id:passwd
 
         self._mgr = aui.AuiManager()
 
@@ -632,6 +657,16 @@ class VsFrame(wx.Frame):
             tree.GetRootItem())
         self.db.SetRoot(self.save_dir_tree)
 
+    def DoSave(self, id, body, encrypt=False):
+        # 原始内容 -->（加密）--> 保存
+        # 加密内容 -->（解密）--> 保存
+        if encrypt or self.db.HasXtea(id):
+            assert self.passwd_map.has_key(id)
+            kk = hashlib.md5(self.passwd_map[id]).digest()
+            cc = xtea.crypt(kk, body)
+            body = cc
+        self.db.SetBody(id, body)
+
     def OnSave(self, event):
         parent, index, ctrl = self.GetCurrentView()
 
@@ -651,7 +686,7 @@ class VsFrame(wx.Frame):
         s = StringIO.StringIO()
         handler = wx.richtext.RichTextXMLHandler()
         handler.SaveStream(ctrl.GetBuffer(), s)
-        self.db.SetBody(id, s.getvalue())
+        self.DoSave(id, s.getvalue())
 
     def OnSaveAs(self, event):
         parent, index, ctrl = self.GetCurrentView()
@@ -783,6 +818,7 @@ class VsFrame(wx.Frame):
     def OnTreeItemActivated(self, event):
         id = self.tree.GetItemPyData(event.GetItem())
         parent = self.GetNotebook()
+        passwd = ""
 
         # 如果内容不可编辑，则直接返回
         if not self.db.IsEditable(id):
@@ -793,6 +829,16 @@ class VsFrame(wx.Frame):
             if id == self.editor_list[i][0]:
                 parent.SetSelection(i)
                 return
+
+        # 要求输入密码
+        encrypted = self.db.HasXtea(id)
+        if encrypted:
+            passwd = wx.GetPasswordFromUser(message=u"请输入密码：", caption=u"打开加密文档", default_value="", parent=None)
+            if not self.db.CheckXtea(id, passwd):
+                if len(passwd) != 0:
+                    wx.MessageBox(u"密码不正确！", program_name, wx.OK | wx.ICON_ERROR)
+                return
+            self.passwd_map[id] = passwd
 
         # 创建新的编辑页
         ctrl = wx.richtext.RichTextCtrl(parent, style=wx.VSCROLL | wx.HSCROLL | wx.NO_BORDER)
@@ -807,6 +853,11 @@ class VsFrame(wx.Frame):
 
         # 解析正文内容
         body = self.db.GetBody(id)
+        if encrypted:
+            kk = hashlib.md5(passwd).digest()
+            cc = xtea.crypt(kk, body)
+            body = cc
+
         if len(body) != 0:
             tmpfile = VsTempFile()
             tmpfile.AppendString(body)
@@ -1126,6 +1177,23 @@ class VsFrame(wx.Frame):
         if tree.ItemHasChildren(cursel):
             menu.Enable(ID_Menu_DeleteEntry, False)
 
+        # 加密/解密
+        menu.AppendSeparator()
+        self.Bind(wx.EVT_MENU, self.OnEncrypt, menu.Append(ID_Menu_Encrypt, u"加密"))
+        id = tree.GetItemPyData(cursel)
+        if VsData_Type_Html == self.db.GetType(id):
+            # 如果已经加密
+            if self.db.HasXtea(id):
+                menu.SetLabel(ID_Menu_Encrypt, u"清除密码")
+            # 在修改状态下禁止操作
+            for i in range(len(self.editor_list)):
+                if id == self.editor_list[i][0]:
+                    if self.IsModified(i):
+                        menu.Enable(ID_Menu_Encrypt, False)
+                    break
+        else:
+            menu.Enable(ID_Menu_Encrypt, False)
+
         self.PopupMenu(menu)
         menu.Destroy()
 
@@ -1174,6 +1242,10 @@ class VsFrame(wx.Frame):
         # 从数据库里删除
         self.db.Delete(id)
 
+        # 清空密码
+        if self.passwd_map.has_key(id):
+            del self.passwd_map[id]
+
         # 如果已经打开，则关闭
         for i in range(len(self.editor_list)):
             if id == self.editor_list[i][0]:
@@ -1183,6 +1255,40 @@ class VsFrame(wx.Frame):
 
         # 从目录树里删除
         tree.Delete(item)
+
+    def OnEncrypt(self, event):
+        tree = self.GetDirTree()
+        cursel = tree.GetSelection()
+        id = tree.GetItemPyData(cursel)
+        assert VsData_Type_Html == self.db.GetType(id)
+        if not self.db.HasXtea(id): # 加密
+            # 用户输入密码
+            p1 = wx.GetPasswordFromUser(message=u"请输入新密码：", caption=u"加密", default_value="", parent=None)
+            p2 = wx.GetPasswordFromUser(message=u"请再次输入新密码：", caption=u"加密", default_value="", parent=None)
+            if p1 != p2:
+                wx.MessageBox(u"输入密码不一致！", program_name, wx.OK | wx.ICON_ERROR)
+                return
+            elif len(p1) == 0:
+                wx.MessageBox(u"密码不允许为空！", program_name, wx.OK | wx.ICON_ERROR)
+                return
+
+            # 记录明文密码
+            assert not self.passwd_map.has_key(id)
+            self.passwd_map[id] = p1
+
+            # 提交密码散列值、数据
+            self.db.SetXtea(id, p1)
+            self.DoSave(id, self.db.GetBody(id), encrypt=True)
+        else: # 解密
+            # 需要输入旧密码
+            p1 = wx.GetPasswordFromUser(message=u"请输入密码：", caption=u"解密", default_value="", parent=None)
+            if not self.db.CheckXtea(id, p1):
+                wx.MessageBox(u"密码不正确！", program_name, wx.OK | wx.ICON_ERROR)
+                return
+            self.passwd_map[id] = p1
+            self.DoSave(id, self.db.GetBody(id), encrypt=True)
+            self.db.ClearXtea(id)
+            del self.passwd_map[id]
 
     def UserQuitConfirm(self):
         dlg = wx.MessageDialog(self, u'内容已经修改但没有保存，确认要继续吗？',
