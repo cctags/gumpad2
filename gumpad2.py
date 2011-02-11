@@ -744,10 +744,7 @@ class VsFrame(wx.Frame):
                 start = 0
                 loc = textstring.find(findstring, start)
         if loc == -1:
-            dlg = wx.MessageDialog(self, u"搜索字符串未找到！",
-                          program_name, wx.OK | wx.ICON_EXCLAMATION)
-            dlg.ShowModal()
-            dlg.Destroy()
+            wx.MessageBox(u"搜索字符串未找到！", program_name, wx.OK | wx.ICON_EXCLAMATION)
         if self.finddlg:
             if loc == -1:
                 self.finddlg.SetFocus()
@@ -1232,11 +1229,8 @@ class VsFrame(wx.Frame):
         id = tree.GetItemPyData(item)
 
         # 确认删除
-        dlg = wx.MessageDialog(self, u'确实要删除吗？', u'确认删除',
-                                wx.YES_NO | wx.ICON_QUESTION)
-        ret = dlg.ShowModal()
-        dlg.Destroy()
-        if wx.ID_YES != ret:
+        ret = wx.MessageBox(u'确实要删除吗？', u'确认删除', wx.YES_NO | wx.ICON_QUESTION)
+        if wx.YES != ret:
             return
 
         # 从数据库里删除
@@ -1291,10 +1285,7 @@ class VsFrame(wx.Frame):
             del self.passwd_map[id]
 
     def UserQuitConfirm(self):
-        dlg = wx.MessageDialog(self, u'内容已经修改但没有保存，确认要继续吗？',
-                               u'确认关闭', wx.YES_NO | wx.ICON_QUESTION)
-        ret = dlg.ShowModal()
-        dlg.Destroy()
+        ret = wx.MessageBox(u"内容已经修改但没有保存，确认要继续吗？", u'确认关闭', wx.YES_NO | wx.ICON_QUESTION)
         return ret
 
     def OnNotebookPageClose(self, event):
@@ -1303,7 +1294,7 @@ class VsFrame(wx.Frame):
 
         # 提示当前内容已经修改但还没有保存
         if self.IsModified(index):
-            if wx.ID_YES != self.UserQuitConfirm():
+            if wx.YES != self.UserQuitConfirm():
                 event.Veto()
                 return
 
@@ -1324,7 +1315,7 @@ class VsFrame(wx.Frame):
 
         # 用户确认
         if modified:
-            if wx.ID_YES != self.UserQuitConfirm():
+            if wx.YES != self.UserQuitConfirm():
                 event.Veto()
                 return
 
