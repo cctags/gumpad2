@@ -30,7 +30,7 @@ sys.path.append(os.path.split(dirName)[0])
 try:
     from agw import aui
     from agw.aui import aui_switcherdialog as ASD
-except ImportError: # if it's not there locally, try the wxPython lib.
+except ImportError:  # if it's not there locally, try the wxPython lib.
     import wx.lib.agw.aui as aui
     from wx.lib.agw.aui import aui_switcherdialog as ASD
 
@@ -72,6 +72,7 @@ def fall_into(x, a, b):
 #
 # VsTempFile
 #
+
 
 class VsTempFile:
 
@@ -150,7 +151,7 @@ class VsData:
         self.db["magic"] = magic
         self.db.sync()
 
-    def GetTree(self, parent, id = None):
+    def GetTree(self, parent, id=None):
         """从 parent 往下查找指定 id 的结点，返回 父结点、结点，
         不存在时返回 None
         """
@@ -189,7 +190,7 @@ class VsData:
     def GenerateId(self):
         return str(uuid.uuid1())
 
-    def Add(self, title, body, parent_id = None, type = None):
+    def Add(self, title, body, parent_id=None, type=None):
         root = self.db["tree"]
         dummy, t = self.GetTree(root, parent_id)
         if type is None:
@@ -230,7 +231,7 @@ class VsData:
             del self.db[id]
         self.db.sync()
 
-    def GetTitle(self, id = None):
+    def GetTitle(self, id=None):
         if id is None:
             id = self.db["tree"]["id"]
         return self.db[id]["title"]
@@ -243,7 +244,7 @@ class VsData:
         self.db[id] = t
         self.db.sync()
 
-    def GetBody(self, id = None):
+    def GetBody(self, id=None):
         if id is None:
             id = self.db["tree"]["id"]
         return self.db[id]["body"]
@@ -256,12 +257,12 @@ class VsData:
         self.db[id] = t
         self.db.sync()
 
-    def GetType(self, id = None):
+    def GetType(self, id=None):
         if id is None:
             id = self.db["tree"]["id"]
         return self.db[id]["type"]
 
-    def IsEditable(self, id = None):
+    def IsEditable(self, id=None):
         """判断指定Id对应的内容是否允许编辑"""
         if id is None:
             return False
@@ -279,6 +280,7 @@ class VsConfig:
     def __init__(self):
         pass
 
+
 def GetDefaultFont():
     return wx.Font(10, wx.FONTFAMILY_DEFAULT, wx.FONTSTYLE_NORMAL, wx.FONTWEIGHT_NORMAL, False, u"宋体", wx.FONTENCODING_SYSTEM)
 
@@ -289,6 +291,7 @@ def GetDefaultFont():
 #
 
 VsGenerateMenuId_Start = wx.ID_HIGHEST + 1
+
 
 def VsGenerateMenuId():
     global VsGenerateMenuId_Start
@@ -356,7 +359,7 @@ class VsStatusBar(wx.StatusBar):
 
     def OnTimer(self):
         # 显示当前时间
-        t = time.localtime(time.time())
+        t = time.localtime()
         str = time.strftime("[%Y-%m-%d %H:%M %A]", t)
         self.SetStatusText(str, 2)
 
@@ -386,6 +389,7 @@ class VsTreeCtrl(wx.TreeCtrl):
     def ItemIsChildOf(self, item1, item2):
         ''' Tests if item1 is a child of item2, using the Traverse function '''
         self.result = False
+
         def test_func(node, depth):
             if node == item1:
                 self.result = True
@@ -805,7 +809,7 @@ class VsFrame(wx.Frame):
 
         # 更新到内存记录里去
         self.editor_list.append([id, ctrl, False])
-        parent.AddPage(ctrl, self.db.GetTitle(id), select = True)
+        parent.AddPage(ctrl, self.db.GetTitle(id), select=True)
 
     def OnTreeEndLabelEdit_After(self, item, old_text):
         """更新 title，如果已经打开，则同步更新"""
@@ -1049,7 +1053,7 @@ class VsFrame(wx.Frame):
         if ctrl is not None:
             event.Enable(True)
             id = event.GetId()
-            if self.toolbar_updateui_funcs.has_key(id):
+            if id in self.toolbar_updateui_funcs:
                 f = self.toolbar_updateui_funcs[id]
                 if f is not None:
                     f(event)
@@ -1300,8 +1304,8 @@ def main():
     usage = program_name + " [-f <file>] [-h] [-v]"
     program_dbpath = os.path.join(os.path.expanduser("~"), program_dbpath)
     parser = optparse.OptionParser(usage)
-    parser.add_option("-v", "--version", action="store_true", dest="version", default = False, help = "print the version number of the executable and exit")
-    parser.add_option("-f", "--file", action = "store", type = "string", dest = "file", default = program_dbpath, help = "specify the data file")
+    parser.add_option("-v", "--version", action="store_true", dest="version", default=False, help="print the version number of the executable and exit")
+    parser.add_option("-f", "--file", action="store", type="string", dest="file", default=program_dbpath, help="specify the data file")
 
     options, args = parser.parse_args(sys.argv[1:])
 
