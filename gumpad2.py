@@ -976,25 +976,25 @@ class VsFrame(wx.Frame):
     def OnAlignLeft(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is not None:
-            ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_LEFT)
+            ctrl.ApplyAlignmentToSelection(wx.TEXT_ALIGNMENT_LEFT)
 
     def OnAlignCenter(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is not None:
-            ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_CENTRE)
+            ctrl.ApplyAlignmentToSelection(wx.TEXT_ALIGNMENT_CENTRE)
 
     def OnAlignRight(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is not None:
-            ctrl.ApplyAlignmentToSelection(wx.richtext.TEXT_ALIGNMENT_RIGHT)
+            ctrl.ApplyAlignmentToSelection(wx.TEXT_ALIGNMENT_RIGHT)
 
     def OnIndentLess(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is None:
             return
 
-        attr = wx.richtext.TextAttrEx()
-        attr.SetFlags(wx.richtext.TEXT_ATTR_LEFT_INDENT)
+        attr = wx.richtext.RichTextAttr()
+        attr.SetFlags(wx.TEXT_ATTR_LEFT_INDENT)
         ip = ctrl.GetInsertionPoint()
         if ctrl.GetStyle(ip, attr):
             r = wx.richtext.RichTextRange(ip, ip)
@@ -1003,7 +1003,7 @@ class VsFrame(wx.Frame):
 
         if attr.GetLeftIndent() >= 100:
             attr.SetLeftIndent(attr.GetLeftIndent() - 100)
-            attr.SetFlags(wx.richtext.TEXT_ATTR_LEFT_INDENT)
+            attr.SetFlags(wx.TEXT_ATTR_LEFT_INDENT)
             ctrl.SetStyle(r, attr)
 
     def OnIndentMore(self, event):
@@ -1011,8 +1011,8 @@ class VsFrame(wx.Frame):
         if ctrl is None:
             return
 
-        attr = wx.richtext.TextAttrEx()
-        attr.SetFlags(wx.richtext.TEXT_ATTR_LEFT_INDENT)
+        attr = wx.richtext.RichTextAttr()
+        attr.SetFlags(wx.TEXT_ATTR_LEFT_INDENT)
         ip = ctrl.GetInsertionPoint()
         if ctrl.GetStyle(ip, attr):
             r = wx.richtext.RichTextRange(ip, ip)
@@ -1020,7 +1020,7 @@ class VsFrame(wx.Frame):
                 r = ctrl.GetSelectionRange()
 
             attr.SetLeftIndent(attr.GetLeftIndent() + 100)
-            attr.SetFlags(wx.richtext.TEXT_ATTR_LEFT_INDENT)
+            attr.SetFlags(wx.TEXT_ATTR_LEFT_INDENT)
             ctrl.SetStyle(r, attr)
 
     def OnUnderline(self, event):
@@ -1039,8 +1039,8 @@ class VsFrame(wx.Frame):
         r = ctrl.GetSelectionRange()
         fontData = wx.FontData()
         fontData.EnableEffects(False)
-        attr = wx.richtext.TextAttrEx()
-        attr.SetFlags(wx.richtext.TEXT_ATTR_FONT)
+        attr = wx.richtext.RichTextAttr()
+        attr.SetFlags(wx.TEXT_ATTR_FONT)
         if ctrl.GetStyle(ctrl.GetInsertionPoint(), attr):
             fontData.SetInitialFont(attr.GetFont())
 
@@ -1049,7 +1049,7 @@ class VsFrame(wx.Frame):
             fontData = dlg.GetFontData()
             font = fontData.GetChosenFont()
             if font:
-                attr.SetFlags(wx.richtext.TEXT_ATTR_FONT)
+                attr.SetFlags(wx.TEXT_ATTR_FONT)
                 attr.SetFont(font)
                 ctrl.SetStyle(r, attr)
         dlg.Destroy()
@@ -1063,8 +1063,8 @@ class VsFrame(wx.Frame):
             return
 
         colourData = wx.ColourData()
-        attr = wx.richtext.TextAttrEx()
-        attr.SetFlags(wx.richtext.TEXT_ATTR_TEXT_COLOUR)
+        attr = wx.richtext.RichTextAttr()
+        attr.SetFlags(wx.TEXT_ATTR_TEXT_COLOUR)
         if ctrl.GetStyle(ctrl.GetInsertionPoint(), attr):
             colourData.SetColour(attr.GetTextColour())
 
@@ -1077,7 +1077,7 @@ class VsFrame(wx.Frame):
                     ctrl.BeginTextColour(colour)
                 else:
                     r = ctrl.GetSelectionRange()
-                    attr.SetFlags(wx.richtext.TEXT_ATTR_TEXT_COLOUR)
+                    attr.SetFlags(wx.TEXT_ATTR_TEXT_COLOUR)
                     attr.SetTextColour(colour)
                     ctrl.SetStyle(r, attr)
         dlg.Destroy()
@@ -1137,17 +1137,17 @@ class VsFrame(wx.Frame):
     def OnUpdateAlignLeft(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is not None:
-            event.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_LEFT))
+            event.Check(ctrl.IsSelectionAligned(wx.TEXT_ALIGNMENT_LEFT))
 
     def OnUpdateAlignCenter(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is not None:
-            event.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_CENTRE))
+            event.Check(ctrl.IsSelectionAligned(wx.TEXT_ALIGNMENT_CENTRE))
 
     def OnUpdateAlignRight(self, event):
         parent, index, ctrl = self.GetCurrentView()
         if ctrl is not None:
-            event.Check(ctrl.IsSelectionAligned(wx.richtext.TEXT_ALIGNMENT_RIGHT))
+            event.Check(ctrl.IsSelectionAligned(wx.TEXT_ALIGNMENT_RIGHT))
 
     def OnRightDown(self, event):
         tree = self.GetDirTree()
@@ -1406,7 +1406,7 @@ def main():
     global program_dbpath
 
     # 本地化设置
-    locale.setlocale(locale.LC_ALL, '')
+    #locale.setlocale(locale.LC_ALL, '')
 
     # 命令行参数解析
     usage = program_name + " [-f <file>] [-h] [-v]"
