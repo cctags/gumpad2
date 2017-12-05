@@ -446,7 +446,7 @@ class VsFrame(wx.Frame):
         self._mgr.SetManagedWindow(self)
 
         # set frame icon
-        icon = wx.EmptyIcon()
+        icon = wx.Icon()
         icon.LoadFile(program_main_icon, wx.BITMAP_TYPE_ICO)
         self.SetIcon(icon)
 
@@ -653,7 +653,7 @@ class VsFrame(wx.Frame):
     def SaveDirTree(self, tree):
         self.save_dir_tree = []
         tree.Traverse(lambda node, path: \
-            self.save_dir_tree.append((tree.GetItemPyData(node), path)),
+            self.save_dir_tree.append((tree.GetItemData(node), path)),
             tree.GetRootItem())
         self.db.SetRoot(self.save_dir_tree)
 
@@ -685,7 +685,7 @@ class VsFrame(wx.Frame):
         # 保存内容
         s = StringIO.StringIO()
         handler = wx.richtext.RichTextXMLHandler()
-        handler.SaveStream(ctrl.GetBuffer(), s)
+        handler.SaveFile(ctrl.GetBuffer(), s)
         self.DoSave(id, s.getvalue())
 
     def OnSaveAs(self, event):
@@ -813,7 +813,7 @@ class VsFrame(wx.Frame):
             self.UpdateViewTitle()
 
     def OnTreeItemActivated(self, event):
-        id = self.tree.GetItemPyData(event.GetItem())
+        id = self.tree.GetItemData(event.GetItem())
         parent = self.GetNotebook()
         passwd = ""
 
@@ -887,7 +887,7 @@ class VsFrame(wx.Frame):
             return
 
         # 更新数据
-        id = self.tree.GetItemPyData(item)
+        id = self.tree.GetItemData(item)
         self.db.SetTitle(id, s)
 
         # 更新打开文件标题
@@ -913,7 +913,7 @@ class VsFrame(wx.Frame):
         if not drop_target.IsOk():
             return
         tree = event.GetEventObject()
-        source_id = tree.GetItemPyData(self.drag_source)
+        source_id = tree.GetItemData(self.drag_source)
 
         # 不允许目标项是源项的子项
         if tree.ItemIsChildOf(drop_target, self.drag_source):
@@ -932,7 +932,7 @@ class VsFrame(wx.Frame):
                 new_item = tree.InsertItem(parent, target, title, imgidx)
             else:
                 new_item = tree.InsertItemBefore(parent, 0, title, imgidx)
-            tree.SetItemPyData(new_item, source_id)
+            tree.SetItemData(new_item, source_id)
 
             # 添加子项
             dummy, t = self.db.GetTree(self.db.GetRoot(), source_id)
@@ -1090,7 +1090,7 @@ class VsFrame(wx.Frame):
         dlg = wx.FileDialog(self, "Choose a file",
                             defaultFile="",
                             wildcard="All files (*.*)|*.*",
-                            style=wx.OPEN | wx.CHANGE_DIR)
+                            style=wx.FD_OPEN | wx.FD_CHANGE_DIR)
         if dlg.ShowModal() != wx.ID_OK:
             return
 
@@ -1177,7 +1177,7 @@ class VsFrame(wx.Frame):
         # 加密/解密
         menu.AppendSeparator()
         self.Bind(wx.EVT_MENU, self.OnEncrypt, menu.Append(ID_Menu_Encrypt, u"加密"))
-        id = tree.GetItemPyData(cursel)
+        id = tree.GetItemData(cursel)
         if VsData_Type_Html == self.db.GetType(id):
             # 如果已经加密
             if self.db.HasXtea(id):
@@ -1199,7 +1199,7 @@ class VsFrame(wx.Frame):
     def OnCreateEntry(self, event, type):
         tree = self.GetDirTree()
         parent_item = tree.GetSelection()
-        parent_id = tree.GetItemPyData(parent_item)
+        parent_id = tree.GetItemData(parent_item)
         name = "new item"
         if VsData_Type_Dir == type:
             image_index = 0
@@ -1207,7 +1207,7 @@ class VsFrame(wx.Frame):
             image_index = 1
         child_id = self.db.Add(name, "", parent_id, type)
         child_item = tree.AppendItem(parent_item, name, image_index)
-        tree.SetItemPyData(child_item, child_id)
+        tree.SetItemData(child_item, child_id)
         tree.SelectItem(child_item)
         tree.EditLabel(child_item)
 
@@ -1226,7 +1226,7 @@ class VsFrame(wx.Frame):
         """删除一个结点"""
         tree = self.GetDirTree()
         item = tree.GetSelection()
-        id = tree.GetItemPyData(item)
+        id = tree.GetItemData(item)
 
         # 确认删除
         ret = wx.MessageBox(u'确实要删除吗？', u'确认删除', wx.YES_NO | wx.ICON_QUESTION)
@@ -1253,7 +1253,7 @@ class VsFrame(wx.Frame):
     def OnEncrypt(self, event):
         tree = self.GetDirTree()
         cursel = tree.GetSelection()
-        id = tree.GetItemPyData(cursel)
+        id = tree.GetItemData(cursel)
         assert VsData_Type_Html == self.db.GetType(id)
         if not self.db.HasXtea(id): # 加密
             # 用户输入密码
@@ -1341,7 +1341,7 @@ class VsFrame(wx.Frame):
             child_id = db_node["subs"][i]["id"]
             imgidx = self.GetDirTreeImageIndexByType(self.db.GetType(child_id))
             n = self.tree.AppendItem(node, self.db.GetTitle(child_id), imgidx)
-            self.tree.SetItemPyData(n, child_id)
+            self.tree.SetItemData(n, child_id)
 
             self.Tree_AddNode(db_node["subs"][i], n)
 
@@ -1358,7 +1358,7 @@ class VsFrame(wx.Frame):
         db_root = self.db.GetRoot()
 
         root = self.tree.AddRoot(self.db.GetTitle(), 0)
-        self.tree.SetItemPyData(root, db_root["id"])
+        self.tree.SetItemData(root, db_root["id"])
 
         self.Tree_AddNode(db_root, root)
         self.tree.ExpandAllChildren(root)
