@@ -2,6 +2,7 @@
 # coding: utf-8
 
 import wx
+import wx.adv
 import wx.richtext
 import wx.lib
 import wx.lib.wordwrap
@@ -1323,18 +1324,18 @@ class VsFrame(wx.Frame):
         self.Destroy()
 
     def OnAbout(self, event):
-        info = wx.AboutDialogInfo()
+        info = wx.adv.AboutDialogInfo()
         info.Name = program_name
         info.Version = program_version
-        info.Copyright = "(C) 2010-2011 sherking@gmail.com"
+        info.Copyright = "(C) 2010-2018 sherking@gmail.com"
         info.Description = wx.lib.wordwrap.wordwrap(
-            program_name + " is a simple richtext notepad.\n\nTHIS SOFTWARE COMES WITH ABSOLUTELY NO WARRANTY! USE AT YOUR OWN RISK!",
+            program_name + " is a simple richtext notepad.\n\nTHIS SOFTWARE COMES WITH ABSOLUTELY NO WARRANTY!\nUSE AT YOUR OWN RISK!",
             430, wx.ClientDC(self))
         info.WebSite = ("http://code.google.com/p/gumpad2")
         info.Developers = ["sherking@gmail.com"]
         info.License = wx.lib.wordwrap.wordwrap("The MIT License", 500, wx.ClientDC(self))
         # Then we call wx.AboutBox giving it that info object
-        wx.AboutBox(info)
+        wx.adv.AboutBox(info)
 
     def Tree_AddNode(self, db_node, node):
         for i in range(len(db_node["subs"])):
